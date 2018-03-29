@@ -261,6 +261,9 @@ namespace Ogre {
             checkExtension("WEBGL_compressed_texture_s3tc") ||
             checkExtension("WEBGL_compressed_texture_atc") ||
             checkExtension("WEBGL_compressed_texture_pvrtc") ||
+            checkExtension("WEBKIT_WEBGL_compressed_texture_pvrtc") ||
+            checkExtension("GL_WEBKIT_WEBGL_compressed_texture_pvrtc") ||
+            checkExtension("GL_IMG_texture_compression_pvrtc2") ||
             checkExtension("WEBGL_compressed_texture_etc1") ||
             checkExtension("WEBGL_compressed_texture_astc") ||
             checkExtension("GL_KHR_texture_compression_astc_ldr"))
@@ -270,7 +273,10 @@ namespace Ogre {
 
             if(checkExtension("GL_IMG_texture_compression_pvrtc") ||
                checkExtension("GL_IMG_texture_compression_pvrtc2") ||
-               checkExtension("WEBGL_compressed_texture_pvrtc"))
+               checkExtension("WEBGL_compressed_texture_pvrtc") ||
+               checkExtension("WEBKIT_WEBGL_compressed_texture_pvrtc") ||
+               checkExtension("GL_WEBKIT_WEBGL_compressed_texture_pvrtc") ||
+               checkExtension("GL_IMG_texture_compression_pvrtc2"))
                 rsc->setCapability(RSC_TEXTURE_COMPRESSION_PVRTC);
                 
             if((checkExtension("GL_EXT_texture_compression_dxt1") &&
