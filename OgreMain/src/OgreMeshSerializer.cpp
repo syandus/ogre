@@ -197,12 +197,18 @@ namespace Ogre {
         // Call implementation
         impl->importMesh(stream, pDest, mListener);
         // Warn on old version of mesh
+        //
+        // rko: We are still using the OgreMax exporter, which has been
+        // abandoned by the original author. Silence this error for now to
+        // avoid stressing the browser's console log.
+        /*
         if (ver != mVersionData[0]->versionString)
         {
             LogManager::getSingleton().logWarning( pDest->getName() +
                 " is an older format (" + ver + "); you should upgrade it as soon as possible" +
                 " using the OgreMeshUpgrade tool.");
         }
+        */
 
         if(mListener)
             mListener->processMeshCompleted(pDest);
