@@ -1118,10 +1118,16 @@ namespace Ogre {
     {
         String skelName = readString(stream);
 
+        // rko: Part of the new AliveSim 3D engine involves sharing skeletons.
+        // This means that we should ignore the mesh specific skeleton link
+        // built into the .mesh file. The skeleton will be specified and loaded
+        // via a different method.
+        /*
         if(listener)
             listener->processSkeletonName(pMesh, &skelName);
 
         pMesh->setSkeletonName(skelName);
+        */
     }
     //---------------------------------------------------------------------
     void MeshSerializerImpl::readTextureLayer(DataStreamPtr& stream, Mesh* pMesh,
