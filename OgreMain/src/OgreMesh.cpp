@@ -510,7 +510,8 @@ namespace Ogre {
             {
                 // Load skeleton
                 try {
-                    mSkeleton = static_pointer_cast<Skeleton>(SkeletonManager::getSingleton().load(skelName, mGroup));
+                    // rko: Skeletons now always exists in the global resource pool.
+                    mSkeleton = static_pointer_cast<Skeleton>(SkeletonManager::getSingleton().load(skelName, ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME));
                 }
                 catch (...)
                 {
