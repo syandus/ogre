@@ -697,29 +697,36 @@ namespace Ogre
         Display* xDisplay = mGLSupport->getXDisplay();
         XWindowAttributes windowAttrib;
 
+        Window parent, root, *children;
+        uint nChildren;
+
+        XQueryTree(xDisplay, mWindow, &root, &parent, &children, &nChildren);
+
+        if (children)
+            XFree(children);
+
+        XGetWindowAttributes(xDisplay, parent, &windowAttrib);
+
         if (mIsTopLevel && !mIsFullScreen)
         {
-            Window parent, root, *children;
-            uint nChildren;
-
-            XQueryTree(xDisplay, mWindow, &root, &parent, &children, &nChildren);
-
-            if (children)
-                XFree(children);
-
-            XGetWindowAttributes(xDisplay, parent, &windowAttrib);
-
+            // offset from window decorations
             mLeft = windowAttrib.x;
             mTop  = windowAttrib.y;
+            // w/ h of the actual renderwindow
+            XGetWindowAttributes(xDisplay, mWindow, &windowAttrib);
         }
-
-        XGetWindowAttributes(xDisplay, mWindow, &windowAttrib);
 
         if (mWidth == (size_t)windowAttrib.width && mHeight == (size_t)windowAttrib.height)
             return;
 
         mWidth = windowAttrib.width;
         mHeight = windowAttrib.height;
+
+        if(!mIsTopLevel)
+        {
+            XResizeWindow(xDisplay, mWindow, mWidth, mHeight);
+            XFlush(xDisplay);
+        }
 
         for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
             (*it).second->_updateDimensions();
@@ -770,6 +777,11 @@ namespace Ogre
     }
 
     //-------------------------------------------------------------------------------------------------//
+    PixelFormat GLXWindow::suggestPixelFormat() const
+    {
+        return mGLSupport->getContextProfile() == GLNativeSupport::CONTEXT_ES ? PF_BYTE_RGBA : PF_BYTE_RGB;
+    }
+
     void GLXWindow::copyContentsToMemory(const Box& src, const PixelBox &dst, FrameBuffer buffer)
     {
         if (mClosed)
@@ -813,4 +825,6 @@ namespace Ogre
             mIsFullScreen = fullscreen;
         }
     }
+
+    GLContext* GLXWindow::getContext() const { return mContext; }
 }

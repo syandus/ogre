@@ -129,7 +129,8 @@ namespace Ogre {
         /// 32-bit pixel format, 8 bits for red, green, blue and alpha.
         PF_R8G8B8A8,
         /// Depth texture format
-        PF_DEPTH,
+        PF_DEPTH16,
+        PF_DEPTH = PF_DEPTH16,
         /// 64-bit pixel format, 16 bits for red, green, blue and alpha
         PF_SHORT_RGBA,
         /// 8-bit pixel format, 2 bits blue, 3 bits green, 3 bits red.
@@ -336,7 +337,7 @@ namespace Ogre {
     class _OgreExport PixelBox: public Box, public ImageAlloc {
     public:
         /// Parameter constructor for setting the members manually
-        PixelBox() {}
+        PixelBox() : data(NULL), format(PF_UNKNOWN) {}
         ~PixelBox() {}
         /** Constructor providing extents in the form of a Box object. This constructor
             assumes the pixel data is laid out consecutively in memory. (this
@@ -530,11 +531,9 @@ namespace Ogre {
         static const String& getFormatName(PixelFormat srcformat);
 
         /** Returns whether the format can be packed or unpacked with the packColour()
-        and unpackColour() functions. This is generally not true for compressed and
-        depth formats as they are special. It can only be true for formats with a
+        and unpackColour() functions. This is generally not true for compressed
+        formats as they are special. It can only be true for formats with a
         fixed element size.
-          @return 
-               true if yes, otherwise false
         */
         static bool isAccessible(PixelFormat srcformat);
         
@@ -558,14 +557,8 @@ namespace Ogre {
         */
         static PixelFormat getFormatFromName(const String& name, bool accessibleOnly = false, bool caseSensitive = false);
 
-        /** Gets the BNF expression of the pixel-formats.
-            @note                   The string returned by this function is intended to be used as a BNF expression
-                                    to work with Compiler2Pass.
-            @param  accessibleOnly  If true, only accessible pixel format will take into account, otherwise all
-                                    pixel formats list in PixelFormat enumeration will being returned.
-            @return                A string contains the BNF expression.
-        */
-        static String getBNFExpressionOfPixelFormats(bool accessibleOnly = false);
+        /// @deprecated do not use
+        OGRE_DEPRECATED static String getBNFExpressionOfPixelFormats(bool accessibleOnly = false);
 
         /** Returns the similar format but acoording with given bit depths.
             @param fmt      The original foamt.

@@ -126,6 +126,8 @@ JNIEnv* OgreJNIGetEnv() {
 %enddef
 
 #ifdef SWIGJAVA
+// use proper (1.5+) enums
+%include "enums.swg"
 // conflicts with SWIG method
 %ignore *::getType;
 #endif
@@ -172,12 +174,20 @@ ADD_REPR(Radian)
 %template(StringVector) std::vector<Ogre::String>;  // actual vector<T>
 %template(StringVectorPtr) Ogre::SharedPtr<std::vector<Ogre::String> >;
 // Linear Algebra
-%include "OgreVector2.h"
-ADD_REPR(Vector2)
-%include "OgreVector3.h"
-ADD_REPR(Vector3)
-%include "OgreVector4.h"
-ADD_REPR(Vector4)
+%ignore Ogre::Vector<2, Ogre::Real>::Vector(float, float, float);
+%ignore Ogre::Vector<2, Ogre::Real>::Vector(float, float, float, float);
+%ignore Ogre::Vector<2, Ogre::Real>::xy;
+%ignore Ogre::Vector<2, Ogre::Real>::xyz;
+%ignore Ogre::Vector<3, Ogre::Real>::Vector(float, float);
+%ignore Ogre::Vector<3, Ogre::Real>::Vector(float, float, float, float);
+%ignore Ogre::Vector<3, Ogre::Real>::xyz;
+%ignore Ogre::Vector<4, Ogre::Real>::Vector(float, float);
+%ignore Ogre::Vector<4, Ogre::Real>::Vector(float, float, float);
+%include "OgreVector.h"
+ADD_REPR(Vector)
+%template(Vector2) Ogre::Vector<2, Ogre::Real>;
+%template(Vector3) Ogre::Vector<3, Ogre::Real>; 
+%template(Vector4) Ogre::Vector<4, Ogre::Real>;  
 %include "OgreMatrix3.h"
 ADD_REPR(Matrix3)
 %ignore Ogre::TransformBase::extract3x3Matrix; // deprecated
@@ -241,6 +251,7 @@ SHARED_PTR(FileHandleDataStream);
 // More Data Types
 %include "OgreColourValue.h"
 ADD_REPR(ColourValue)
+%ignore Ogre::PixelUtil::getBNFExpressionOfPixelFormats;
 %include "OgrePixelFormat.h"
 %include "OgreBlendMode.h"
 %include "OgreRay.h"
@@ -316,7 +327,7 @@ SHARED_PTR(HardwareUniformBuffer);
 %ignore Ogre::ResourceGroupManager::openResource(const String&, const String&, bool, Resource*) const;
 %ignore Ogre::ResourceGroupManager::openResource(const String&, const String&, bool) const;
 %include "OgreResourceGroupManager.h"
-#if SWIG_VERSION < 0x030012
+#if SWIG_VERSION < 0x030012 || defined(SWIGJAVA)
 // conflicts with overloaded versions (GpuProgram, Texture)
 %ignore Ogre::ResourceManager::getResourceByName;
 %ignore Ogre::ResourceManager::createOrRetrieve;
@@ -384,6 +395,7 @@ SHARED_PTR(Material);
     %include "OgreLight.h"
     %include "OgreNode.h"
         %include "OgreBone.h"
+        %ignore Ogre::SceneNode::getAttachedObjectIterator;
         %include "OgreSceneNode.h"
     SHARED_PTR(ShadowCameraSetup);
     SHARED_PTR(DefaultShadowCameraSetup);
@@ -448,6 +460,8 @@ SHARED_PTR(Mesh);
     %include "OgrePatchMesh.h"
 %include "OgreMeshManager.h"
 %ignore Ogre::Pass::getTextureUnitStateIterator; // deprecated
+%ignore Ogre::Pass::hasSeparateSceneBlending;
+%ignore Ogre::Pass::hasSeparateSceneBlendingOperations;
 %template(TextureUnitStates) std::vector<Ogre::TextureUnitState*>;
 %include "OgrePass.h"
     %ignore Ogre::Technique::getGPUVendorRuleIterator;

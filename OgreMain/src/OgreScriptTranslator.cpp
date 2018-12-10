@@ -44,6 +44,7 @@ THE SOFTWARE.
 #include "OgreDepthBuffer.h"
 #include "OgreParticleSystem.h"
 #include "OgreHighLevelGpuProgram.h"
+#include "OgreGpuProgramUsage.h"
 
 namespace Ogre{
 
@@ -463,7 +464,7 @@ namespace Ogre{
         return true;
     }
 
-    template<> bool getValue(const AbstractNodePtr& node, TextureUnitState::TextureAddressingMode& result)
+    template<> bool getValue(const AbstractNodePtr& node, TextureAddressingMode& result)
     {
         if(node->type != ANT_ATOM)
             return false;
@@ -516,10 +517,10 @@ namespace Ogre{
 
     template <typename T>
     static bool _getVector(AbstractNodeList::const_iterator i, AbstractNodeList::const_iterator end,
-                          std::vector<T>& vals, int count)
+                          std::vector<T>& vals, size_t count)
     {
         vals.reserve(count);
-        int n = 0;
+        size_t n = 0;
         while (n < count)
         {
             if (i != end)
@@ -534,6 +535,34 @@ namespace Ogre{
 
         vals.resize(count);
         return true;
+    }
+
+    static GpuProgramType getProgramType(int id)
+    {
+        switch(id)
+        {
+        default:
+            assert(false);
+            OGRE_FALLTHROUGH;
+        case ID_VERTEX_PROGRAM:
+        case ID_VERTEX_PROGRAM_REF:
+            return GPT_VERTEX_PROGRAM;
+        case ID_FRAGMENT_PROGRAM:
+        case ID_FRAGMENT_PROGRAM_REF:
+            return GPT_FRAGMENT_PROGRAM;
+        case ID_GEOMETRY_PROGRAM:
+        case ID_GEOMETRY_PROGRAM_REF:
+            return GPT_GEOMETRY_PROGRAM;
+        case ID_TESSELLATION_DOMAIN_PROGRAM:
+        case ID_TESSELLATION_DOMAIN_PROGRAM_REF:
+            return GPT_DOMAIN_PROGRAM;
+        case ID_TESSELLATION_HULL_PROGRAM:
+        case ID_TESSELLATION_HULL_PROGRAM_REF:
+            return GPT_HULL_PROGRAM;
+        case ID_COMPUTE_PROGRAM:
+        case ID_COMPUTE_PROGRAM_REF:
+            return GPT_COMPUTE_PROGRAM;
+        }
     }
 
     void ScriptTranslator::processNode(ScriptCompiler *compiler, const AbstractNodePtr &node)
@@ -1109,9 +1138,9 @@ namespace Ogre{
                         LodStrategy *strategy = DistanceLodSphereStrategy::getSingletonPtr();
                         mMaterial->setLodStrategy(strategy);
 
-                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file,
+                        compiler->addError(ScriptCompiler::CE_DEPRECATEDSYMBOL, prop->file,
                                            prop->line,
-                                           "lod_distances is deprecated. Use lod_values.");
+                                           "lod_distances. Use lod_values.");
 
                         // Read in LOD distances
                         Material::LodValueList lods;
@@ -1992,7 +2021,7 @@ namespace Ogre{
                     break;
                 case ID_MAX_LIGHTS:
                     if(getValue(prop, compiler, uival))
-                        mPass->setMaxSimultaneousLights(uival);
+                        mPass->setMaxSimultaneousLights(Math::uint16Cast(uival));
                     break;
                 case ID_START_LIGHT:
                     if(getValue(prop, compiler, uival))
@@ -2256,22 +2285,12 @@ namespace Ogre{
                 switch(child->id)
                 {
                 case ID_FRAGMENT_PROGRAM_REF:
-                    translateProgramRef(GPT_FRAGMENT_PROGRAM, compiler, child);
-                    break;
                 case ID_VERTEX_PROGRAM_REF:
-                    translateProgramRef(GPT_VERTEX_PROGRAM, compiler, child);
-                    break;
                 case ID_GEOMETRY_PROGRAM_REF:
-                    translateProgramRef(GPT_GEOMETRY_PROGRAM, compiler, child);
-                    break;
                 case ID_TESSELLATION_HULL_PROGRAM_REF:
-                    translateProgramRef(GPT_HULL_PROGRAM, compiler, child);
-                    break;
                 case ID_TESSELLATION_DOMAIN_PROGRAM_REF:
-                    translateProgramRef(GPT_DOMAIN_PROGRAM, compiler, child);
-                    break;
                 case ID_COMPUTE_PROGRAM_REF:
-                    translateProgramRef(GPT_COMPUTE_PROGRAM, compiler, child);
+                    translateProgramRef(getProgramType(child->id), compiler, child);
                     break;
                 case ID_SHADOW_CASTER_VERTEX_PROGRAM_REF:
                     translateShadowCasterVertexProgramRef(compiler, child);
@@ -2287,6 +2306,19 @@ namespace Ogre{
                     break;
                 default:
                     processNode(compiler, *i);
+                    break;
+                case ID_FRAGMENT_PROGRAM:
+                case ID_VERTEX_PROGRAM:
+                case ID_GEOMETRY_PROGRAM:
+                case ID_TESSELLATION_HULL_PROGRAM:
+                case ID_TESSELLATION_DOMAIN_PROGRAM:
+                case ID_COMPUTE_PROGRAM:
+                {
+                    // auto assign inline defined programs
+                    processNode(compiler, *i);
+                    GpuProgramType type = getProgramType(child->id);
+                    mPass->setGpuProgram(type, GpuProgramUsage::_getProgramByName(child->name, mPass->getResourceGroup(), type));
+                }
                 }
             }
         }
@@ -2324,7 +2356,14 @@ namespace Ogre{
         Pass *pass = getPass(compiler, node);
         if(!pass) return;
 
-        pass->setGpuProgram(type, node->name);
+        auto program = GpuProgramUsage::_getProgramByName(node->name, pass->getResourceGroup(), type);
+        if (!program) {
+            compiler->addError(ScriptCompiler::CE_REFERENCETOANONEXISTINGOBJECT, node->file,
+                               node->line, node->name);
+            return;
+        }
+
+        pass->setGpuProgram(type, program);
         if(pass->getGpuProgram(type)->isSupported())
         {
             GpuProgramParametersSharedPtr params = pass->getGpuProgramParameters(type);
@@ -2392,6 +2431,193 @@ namespace Ogre{
     {
     }
     //-------------------------------------------------------------------------
+    void SamplerTranslator::translateSamplerParam(ScriptCompiler* compiler, const SamplerPtr& sampler, PropertyAbstractNode* prop)
+    {
+        bool bval;
+        Real fval;
+        uint32 uival;
+
+        switch(prop->id)
+        {
+        case ID_TEX_ADDRESS_MODE:
+            {
+                if(prop->values.empty())
+                {
+                    compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+                }
+                else
+                {
+                    AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0),
+                        i1 = getNodeAt(prop->values, 1),
+                        i2 = getNodeAt(prop->values, 2);
+                    Sampler::UVWAddressingMode mode;
+
+                    if(!getValue(*i0, mode.u))
+                    {
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                           (*i0)->getValue() + " not supported as first argument (must be \"wrap\", \"clamp\", \"mirror\", or \"border\")");
+                    }
+                    mode.v = mode.u;
+                    mode.w = mode.u;
+
+                    if(i1 != prop->values.end())
+                    {
+                        if(!getValue(*i1, mode.v))
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               (*i1)->getValue() + " not supported as second argument (must be \"wrap\", \"clamp\", \"mirror\", or \"border\")");
+                        }
+                    }
+
+                    if(i2 != prop->values.end())
+                    {
+                        if(!getValue(*i2, mode.w))
+                        {
+                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                               (*i2)->getValue() + " not supported as third argument (must be \"wrap\", \"clamp\", \"mirror\", or \"border\")");
+                        }
+                    }
+
+                    sampler->setAddressingMode(mode);
+                }
+            }
+            break;
+        case ID_TEX_BORDER_COLOUR:
+            if(prop->values.empty())
+            {
+                compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
+            }
+            else
+            {
+                ColourValue val;
+                if(getColour(prop->values.begin(), prop->values.end(), &val))
+                    sampler->setBorderColour(val);
+                else
+                    compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                       "tex_border_colour only accepts a colour argument");
+            }
+            break;
+        case ID_FILTERING:
+            if(prop->values.empty())
+            {
+                compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
+            }
+            else if(prop->values.size() == 1)
+            {
+                if(prop->values.front()->type == ANT_ATOM)
+                {
+                    AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
+                    switch(atom->id)
+                    {
+                    case ID_NONE:
+                        sampler->setFiltering(TFO_NONE);
+                        break;
+                    case ID_BILINEAR:
+                        sampler->setFiltering(TFO_BILINEAR);
+                        break;
+                    case ID_TRILINEAR:
+                        sampler->setFiltering(TFO_TRILINEAR);
+                        break;
+                    case ID_ANISOTROPIC:
+                        sampler->setFiltering(TFO_ANISOTROPIC);
+                        break;
+                    default:
+                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                           prop->values.front()->getValue() + " not supported as first argument (must be \"none\", \"bilinear\", \"trilinear\", or \"anisotropic\")");
+                    }
+                }
+                else
+                {
+                    compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
+                                       prop->values.front()->getValue() + " not supported as first argument (must be \"none\", \"bilinear\", \"trilinear\", or \"anisotropic\")");
+                }
+            }
+            else if(prop->values.size() == 3)
+            {
+                AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0),
+                    i1 = getNodeAt(prop->values, 1),
+                    i2 = getNodeAt(prop->values, 2);
+                FilterOptions tmin, tmax, tmip;
+                if (getValue(*i0, tmin) && getValue(*i1, tmax) && getValue(*i2, tmip))
+                {
+                    sampler->setFiltering(tmin, tmax, tmip);
+                }
+                else
+                {
+                    compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                }
+            }
+            else
+            {
+                compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
+                                   "filtering must have either 1 or 3 arguments");
+            }
+            break;
+        case ID_CMPTEST:
+            if(getValue(prop, compiler, bval))
+                sampler->setCompareEnabled(bval);
+            break;
+        case ID_CMPFUNC:
+            compiler->addError(ScriptCompiler::CE_DEPRECATEDSYMBOL, prop->file,
+                prop->line,
+                "compare_func. Use comp_func.");
+            OGRE_FALLTHROUGH;
+        case ID_COMP_FUNC:
+            CompareFunction func;
+            if(getValue(prop, compiler, func))
+                sampler->setCompareFunction(func);
+            break;
+        case ID_MAX_ANISOTROPY:
+            if(getValue(prop, compiler, uival))
+                sampler->setAnisotropy(uival);
+            break;
+        case ID_MIPMAP_BIAS:
+            if(getValue(prop, compiler, fval))
+                sampler->setMipmapBias(fval);
+            break;
+        }
+    }
+    void SamplerTranslator::translate(ScriptCompiler *compiler, const Ogre::AbstractNodePtr &node)
+    {
+        ObjectAbstractNode *obj = static_cast<ObjectAbstractNode*>(node.get());
+
+        if(obj->name.empty())
+        {
+            compiler->addError(ScriptCompiler::CE_OBJECTNAMEEXPECTED, obj->file, obj->line);
+            return;
+        }
+
+        SamplerPtr sampler = TextureManager::getSingleton().createSampler(obj->name);
+
+        // Set the properties for the material
+        for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
+        {
+            if((*i)->type == ANT_PROPERTY)
+            {
+                PropertyAbstractNode *prop = static_cast<PropertyAbstractNode*>((*i).get());
+                switch(prop->id)
+                {
+                case ID_TEX_ADDRESS_MODE:
+                case ID_TEX_BORDER_COLOUR:
+                case ID_FILTERING:
+                case ID_CMPTEST:
+                case ID_COMP_FUNC:
+                case ID_MAX_ANISOTROPY:
+                case ID_MIPMAP_BIAS:
+                    translateSamplerParam(compiler, sampler, prop);
+                    break;
+                default:
+                    compiler->addError(ScriptCompiler::CE_UNEXPECTEDTOKEN, prop->file, prop->line,
+                                       "token \"" + prop->name + "\" is not recognized");
+                }
+            }
+            else if((*i)->type == ANT_OBJECT)
+            {
+                processNode(compiler, *i);
+            }
+        }
+    }
+
     void TextureUnitTranslator::translate(ScriptCompiler *compiler, const Ogre::AbstractNodePtr &node)
     {
         ObjectAbstractNode *obj = static_cast<ObjectAbstractNode*>(node.get());
@@ -2404,7 +2630,6 @@ namespace Ogre{
         if(!obj->name.empty())
             mUnit->setName(obj->name);
 
-        bool bval;
         Real fval;
         uint32 uival;
         String sval;
@@ -2417,6 +2642,27 @@ namespace Ogre{
                 PropertyAbstractNode *prop = static_cast<PropertyAbstractNode*>((*i).get());
                 switch(prop->id)
                 {
+                case ID_TEX_ADDRESS_MODE:
+                case ID_TEX_BORDER_COLOUR:
+                case ID_FILTERING:
+                case ID_CMPTEST:
+                case ID_CMPFUNC:
+                case ID_COMP_FUNC:
+                case ID_MAX_ANISOTROPY:
+                case ID_MIPMAP_BIAS:
+                    SamplerTranslator::translateSamplerParam(compiler, mUnit->_getLocalSampler(), prop);
+                    break;
+                case ID_SAMPLER_REF:
+                    if(getValue(prop, compiler, sval))
+                    {
+                        auto sampler = TextureManager::getSingleton().getSampler(sval);
+                        if(sampler)
+                            mUnit->setSampler(sampler);
+                        else
+                            compiler->addError(ScriptCompiler::CE_REFERENCETOANONEXISTINGOBJECT,
+                                               prop->file, prop->line, sval);
+                    }
+                    break;
                 case ID_TEXTURE_ALIAS:
                     if(getValue(prop, compiler, sval))
                         mUnit->setTextureNameAlias(sval);
@@ -2605,9 +2851,9 @@ namespace Ogre{
                             mUnit->setCubicTextureName(evt.mName, atom1->id == ID_COMBINED_UVW);
 
                             if(mUnit->is3D())
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file,
+                                compiler->addError(ScriptCompiler::CE_DEPRECATEDSYMBOL, prop->file,
                                                    prop->line,
-                                                   "'cubic_texture .. combinedUVW' is deprecated. Use 'texture .. cubic' instead.");
+                                                   "'cubic_texture .. combinedUVW'. Use 'texture .. cubic' instead.");
                         }
                         else
                         {
@@ -2663,137 +2909,7 @@ namespace Ogre{
                     if(getValue(prop, compiler, uival))
                         mUnit->setTextureCoordSet(uival);
                     break;
-                case ID_TEX_ADDRESS_MODE:
-                    {
-                        if(prop->values.empty())
-                        {
-                            compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                        }
-                        else
-                        {
-                            AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0),
-                                i1 = getNodeAt(prop->values, 1),
-                                i2 = getNodeAt(prop->values, 2);
-                            TextureUnitState::UVWAddressingMode mode;
 
-                            if(!getValue(*i0, mode.u))
-                            {
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   (*i0)->getValue() + " not supported as first argument (must be \"wrap\", \"clamp\", \"mirror\", or \"border\")");
-                            }
-                            mode.v = mode.u;
-                            mode.w = mode.u;
-
-                            if(i1 != prop->values.end())
-                            {
-                                if(!getValue(*i1, mode.v))
-                                {
-                                    compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                       (*i1)->getValue() + " not supported as second argument (must be \"wrap\", \"clamp\", \"mirror\", or \"border\")");
-                                }
-                            }
-
-                            if(i2 != prop->values.end())
-                            {
-                                if(!getValue(*i2, mode.w))
-                                {
-                                    compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                       (*i2)->getValue() + " not supported as third argument (must be \"wrap\", \"clamp\", \"mirror\", or \"border\")");
-                                }
-                            }
-
-                            mUnit->setTextureAddressingMode(mode);
-                        }
-                    }
-                    break;
-                case ID_TEX_BORDER_COLOUR:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_NUMBEREXPECTED, prop->file, prop->line);
-                    }
-                    else
-                    {
-                        ColourValue val;
-                        if(getColour(prop->values.begin(), prop->values.end(), &val))
-                            mUnit->setTextureBorderColour(val);
-                        else
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               "tex_border_colour only accepts a colour argument");
-                    }
-                    break;
-                case ID_FILTERING:
-                    if(prop->values.empty())
-                    {
-                        compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, prop->file, prop->line);
-                    }
-                    else if(prop->values.size() == 1)
-                    {
-                        if(prop->values.front()->type == ANT_ATOM)
-                        {
-                            AtomAbstractNode *atom = (AtomAbstractNode*)prop->values.front().get();
-                            switch(atom->id)
-                            {
-                            case ID_NONE:
-                                mUnit->setTextureFiltering(TFO_NONE);
-                                break;
-                            case ID_BILINEAR:
-                                mUnit->setTextureFiltering(TFO_BILINEAR);
-                                break;
-                            case ID_TRILINEAR:
-                                mUnit->setTextureFiltering(TFO_TRILINEAR);
-                                break;
-                            case ID_ANISOTROPIC:
-                                mUnit->setTextureFiltering(TFO_ANISOTROPIC);
-                                break;
-                            default:
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                                   prop->values.front()->getValue() + " not supported as first argument (must be \"none\", \"bilinear\", \"trilinear\", or \"anisotropic\")");
-                            }
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line,
-                                               prop->values.front()->getValue() + " not supported as first argument (must be \"none\", \"bilinear\", \"trilinear\", or \"anisotropic\")");
-                        }
-                    }
-                    else if(prop->values.size() == 3)
-                    {
-                        AbstractNodeList::const_iterator i0 = getNodeAt(prop->values, 0),
-                            i1 = getNodeAt(prop->values, 1),
-                            i2 = getNodeAt(prop->values, 2);
-                        FilterOptions tmin, tmax, tmip;
-                        if (getValue(*i0, tmin) && getValue(*i1, tmax) && getValue(*i2, tmip))
-                        {
-                            mUnit->setTextureFiltering(tmin, tmax, tmip);
-                        }
-                        else
-                        {
-                            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
-                        }
-                    }
-                    else
-                    {
-                        compiler->addError(ScriptCompiler::CE_FEWERPARAMETERSEXPECTED, prop->file, prop->line,
-                                           "filtering must have either 1 or 3 arguments");
-                    }
-                    break;
-                case ID_CMPTEST:
-                    if(getValue(prop, compiler, bval))
-                        mUnit->setTextureCompareEnabled(bval);
-                    break;
-                case ID_CMPFUNC:
-                    CompareFunction func;
-                    if(getValue(prop, compiler, func))
-                        mUnit->setTextureCompareFunction(func);
-                    break;
-                case ID_MAX_ANISOTROPY:
-                    if(getValue(prop, compiler, uival))
-                        mUnit->setTextureAnisotropy(uival);
-                    break;
-                case ID_MIPMAP_BIAS:
-                    if(getValue(prop, compiler, fval))
-                        mUnit->setTextureMipmapBias(fval);
-                    break;
                 case ID_COLOUR_OP:
                     LayerBlendOperation cop;
                     if(getValue(prop, compiler, cop))
@@ -3495,16 +3611,6 @@ namespace Ogre{
             }
         }
 
-        if (!GpuProgramManager::getSingleton().isSyntaxSupported(syntax))
-        {
-            compiler->addError(ScriptCompiler::CE_UNSUPPORTEDBYRENDERSYSTEM, obj->file, obj->line, ", Shader name: " + obj->name);
-            // Register the unsupported program so that materials that use it know that
-            // it exists but is unsupported.
-            GpuProgramPtr unsupportedProg = static_pointer_cast<GpuProgram>(GpuProgramManager::getSingleton().create(obj->name,
-                                                                                     compiler->getResourceGroup(), translateIDToGpuProgramType(obj->id), syntax));
-            return;
-        }
-
         // Allocate the program
         GpuProgram *prog = 0;
         CreateGpuProgramScriptCompilerEvent evt(obj->file, obj->name, compiler->getResourceGroup(), source, syntax, translateIDToGpuProgramType(obj->id));
@@ -3642,7 +3748,7 @@ namespace Ogre{
         }
 
         std::vector<std::pair<PropertyAbstractNode*, String> > customParameters;
-        String source, profiles;
+        String source, profiles, target;
         AbstractNodePtr params;
         for(AbstractNodeList::iterator i = obj->children.begin(); i != obj->children.end(); ++i)
         {
@@ -3682,6 +3788,8 @@ namespace Ogre{
 
                     if(prop->name == "profiles")
                         profiles = value;
+                    else if(prop->name == "target")
+                        target = value;
                     else
                         customParameters.push_back(std::make_pair(prop, value));
                 }
@@ -3703,7 +3811,9 @@ namespace Ogre{
         if(!processed)
         {
             prog = HighLevelGpuProgramManager::getSingleton().createProgram(obj->name, compiler->getResourceGroup(), language, translateIDToGpuProgramType(obj->id)).get();
-            prog->setSourceFile(source);
+
+            if(prog) // duplicate definition resolved by "use previous"
+                prog->setSourceFile(source);
         }
 
         // Check that allocation worked
@@ -3725,6 +3835,10 @@ namespace Ogre{
         // special case for Cg
         if(!profiles.empty())
             prog->setParameter("profiles", profiles);
+
+        // special case for HLSL
+        if(!target.empty())
+            prog->setParameter("target", target);
 
         // Set the custom parameters
         for(const auto& p : customParameters)
@@ -4300,7 +4414,7 @@ namespace Ogre{
                             }
                             else
                             {
-                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line, atom1->value);
                             }
                         }
                         else
@@ -4954,7 +5068,7 @@ namespace Ogre{
                                         return;
                                     }
 
-                                    depthBufferId = StringConverter::parseInt(atom->value);
+                                    depthBufferId = Math::uint16Cast(StringConverter::parseInt(atom->value));
                                 }
                                 break;
                             default:
@@ -4982,7 +5096,7 @@ namespace Ogre{
                                     PixelFormat format = PixelUtil::getFormatFromName(atom->value, true);
                                     if (format == PF_UNKNOWN)
                                     {
-                                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line);
+                                        compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, prop->file, prop->line, atom->value);
                                         return;
                                     }
                                     formats.push_back(format);
@@ -5154,33 +5268,47 @@ namespace Ogre{
     {
         ObjectAbstractNode *obj = static_cast<ObjectAbstractNode*>(node.get());
 
-        CompositionTargetPass *target = any_cast<CompositionTargetPass*>(obj->parent->context);
-        mPass = target->createPass();
-        obj->context = Any(mPass);
-
         // The name is the type of the pass
-        if(obj->values.empty())
+        if(obj->values.empty() || obj->values.front()->type != ANT_ATOM)
         {
             compiler->addError(ScriptCompiler::CE_STRINGEXPECTED, obj->file, obj->line);
             return;
         }
-        String type;
-        if(!getString(obj->values.front(), &type))
+
+        AtomAbstractNode* atom = static_cast<AtomAbstractNode*>(obj->values.front().get());
+
+        CompositionPass::PassType ptype;
+        switch(atom->id)
         {
-            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, obj->file, obj->line);
-            return;
+            case ID_CLEAR:
+                ptype = CompositionPass::PT_CLEAR;
+                break;
+            case ID_STENCIL:
+                ptype = CompositionPass::PT_STENCIL;
+                break;
+            case ID_RENDER_QUAD:
+                ptype = CompositionPass::PT_RENDERQUAD;
+                break;
+            case ID_RENDER_SCENE:
+                ptype = CompositionPass::PT_RENDERSCENE;
+                break;
+            case ID_COMPUTE:
+                ptype = CompositionPass::PT_COMPUTE;
+                break;
+            case ID_RENDER_CUSTOM:
+                ptype = CompositionPass::PT_RENDERCUSTOM;
+                break;
+            default:
+                compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, obj->file, obj->line, atom->value);
+                return;
         }
 
-        if(type == "clear")
-            mPass->setType(CompositionPass::PT_CLEAR);
-        else if(type == "stencil")
-            mPass->setType(CompositionPass::PT_STENCIL);
-        else if(type == "render_quad")
-            mPass->setType(CompositionPass::PT_RENDERQUAD);
-        else if(type == "render_scene")
-            mPass->setType(CompositionPass::PT_RENDERSCENE);
-        else if(type == "render_custom") {
-            mPass->setType(CompositionPass::PT_RENDERCUSTOM);
+        CompositionTargetPass *target = any_cast<CompositionTargetPass*>(obj->parent->context);
+        mPass = target->createPass(ptype);
+        obj->context = Any(mPass);
+
+        if(mPass->getType() == CompositionPass::PT_RENDERCUSTOM) 
+        {
             String customType;
             //This is the ugly one liner for safe access to the second parameter.
             if (obj->values.size() < 2 || !getString(*(++(obj->values.begin())), &customType))
@@ -5189,12 +5317,6 @@ namespace Ogre{
                 return;
             }
             mPass->setCustomType(customType);
-        }
-        else
-        {
-            compiler->addError(ScriptCompiler::CE_INVALIDPARAMETERS, obj->file, obj->line,
-                               "pass types must be \"clear\", \"stencil\", \"render_quad\", \"render_scene\" or \"render_custom\".");
-            return;
         }
 
         Real fval;
@@ -5361,6 +5483,13 @@ namespace Ogre{
                     if(getValue(prop, compiler, sval))
                         mPass->setMaterialScheme(sval);
                     break;
+                case ID_THREAD_GROUPS:
+                {
+                    std::vector<int> g;
+                    if(_getVector(prop->values.begin(), prop->values.end(), g, 3))
+                        mPass->setThreadGroups({g[0], g[1], g[2]});
+                    break;
+                }
                 case ID_QUAD_NORMALS:
                     if(prop->values.empty())
                     {
@@ -5376,7 +5505,7 @@ namespace Ogre{
                     {
                         if(prop->values.front()->type == ANT_ATOM)
                         {
-                            AtomAbstractNode *atom = static_cast<AtomAbstractNode*>(prop->values.front().get());
+                            atom = static_cast<AtomAbstractNode*>(prop->values.front().get());
                             if(atom->id == ID_CAMERA_FAR_CORNERS_VIEW_SPACE)
                                 mPass->setQuadFarCorners(true, true);
                             else if(atom->id == ID_CAMERA_FAR_CORNERS_WORLD_SPACE)
@@ -5446,6 +5575,8 @@ namespace Ogre{
                 translator = &mCompositionTargetPassTranslator;
             else if(obj->id == ID_PASS && parent && (parent->id == ID_TARGET || parent->id == ID_TARGET_OUTPUT))
                 translator = &mCompositionPassTranslator;
+            else if(obj->id == ID_SAMPLER)
+                translator = &mSamplerTranslator;
         }
 
         return translator;

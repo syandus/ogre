@@ -196,6 +196,10 @@ namespace Ogre
         RSC_PERSTAGECONSTANT = OGRE_CAPS_VALUE(CAPS_CATEGORY_D3D9, 0),
         /// D3D11: supports reading back the inactive depth-stencil buffer as texture
         RSC_READ_BACK_AS_TEXTURE = OGRE_CAPS_VALUE(CAPS_CATEGORY_D3D9, 1),
+        /// the renderer will try to use W-buffers when available
+        /// W-buffers are enabled by default for 16bit depth buffers and disabled for all other
+        /// depths.
+        RSC_WBUFFER              = OGRE_CAPS_VALUE(CAPS_CATEGORY_D3D9, 2),
 
         // ***** GL Specific Caps *****
         /// Support for PBuffer
@@ -711,7 +715,7 @@ namespace Ogre
             mMaxSupportedAnisotropy = s;
         }
         /// Get the maximum supported anisotropic filtering
-        Real getMaxSupportedAnisotropy()
+        Real getMaxSupportedAnisotropy() const
         {
             return mMaxSupportedAnisotropy;
         }
@@ -775,7 +779,7 @@ namespace Ogre
 
 
         /** Write the capabilities to the pass in Log */
-        void log(Log* pLog);
+        void log(Log* pLog) const;
 
         // Support for new shader stages in shader model 5.0
         /// The number of floating-point constants tessellation Hull programs support

@@ -743,17 +743,6 @@ namespace Ogre
 
             autoWindow = _createRenderWindow( windowTitle, width, height, 
                 fullScreen, &miscParams );
-
-            // If we have 16bit depth buffer enable w-buffering.
-            assert( autoWindow );
-            if ( autoWindow->getColourDepth() == 16 ) 
-            { 
-                mWBuffer = true;
-            } 
-            else 
-            {
-                mWBuffer = false;
-            }
         }
 
         LogManager::getSingleton().logMessage("***************************************");
@@ -966,6 +955,7 @@ namespace Ogre
         rsc->setCapability(RSC_RTT_DEPTHBUFFER_RESOLUTION_LESSEQUAL);
         rsc->setCapability(RSC_VERTEX_BUFFER_INSTANCE_DATA);
         rsc->setCapability(RSC_CAN_GET_COMPILED_SHADER_BUFFER);
+        rsc->setCapability(RSC_WBUFFER); 
 
         for (uint i=0; i < mDeviceManager->getDeviceCount(); ++i)
         {
@@ -1094,6 +1084,8 @@ namespace Ogre
             if ((rkCurCaps.RasterCaps & D3DPRASTERCAPS_MIPMAPLODBIAS) == 0)         
                 rsc->unsetCapability(RSC_MIPMAP_LOD_BIAS);          
 
+            if((rkCurCaps.RasterCaps & D3DPRASTERCAPS_WBUFFER) == 0)
+                rsc->unsetCapability(RSC_WBUFFER); 
 
             // Do we support per-stage src_manual constants?
             // HACK - ATI drivers seem to be buggy and don't support per-stage constants properly?
@@ -2021,6 +2013,47 @@ namespace Ogre
             mTexStageDesc[stage].texType = D3D9Mappings::D3D_TEX_TYPE_NORMAL;
         }
     }
+    void D3D9RenderSystem::_setSampler(size_t unit, Sampler& sampler)
+    {
+        const Sampler::UVWAddressingMode& uvw = sampler.getAddressingMode();
+        HRESULT hr;
+        DWORD samplerId = getSamplerId(unit);
+        const D3DCAPS9& caps = mDeviceManager->getActiveDevice()->getD3D9DeviceCaps();
+        if( FAILED( hr = __SetSamplerState( samplerId, D3DSAMP_ADDRESSU, D3D9Mappings::get(uvw.u, caps) ) ) )
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set texture addressing mode for U", "D3D9RenderSystem::_setSampler" );
+        if( FAILED( hr = __SetSamplerState( samplerId, D3DSAMP_ADDRESSV, D3D9Mappings::get(uvw.v, caps) ) ) )
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set texture addressing mode for V", "D3D9RenderSystem::_setSampler" );
+        if( FAILED( hr = __SetSamplerState( samplerId, D3DSAMP_ADDRESSW, D3D9Mappings::get(uvw.w, caps) ) ) )
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set texture addressing mode for W", "D3D9RenderSystem::_setSampler" );
+        if( FAILED( hr = __SetSamplerState( samplerId, D3DSAMP_BORDERCOLOR, sampler.getBorderColour().getAsARGB()) ) )
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set texture border colour", "D3D9RenderSystem::_setSampler" );
+
+        __SetSamplerState( samplerId, D3DSAMP_MAXANISOTROPY, std::min<uint>(caps.MaxAnisotropy, sampler.getAnisotropy()) );
+
+        if (mCurrentCapabilities->hasCapability(RSC_MIPMAP_LOD_BIAS))
+        {
+            // ugh - have to pass float data through DWORD with no conversion
+            float mipBias = sampler.getMipmapBias();
+            hr = __SetSamplerState(samplerId, D3DSAMP_MIPMAPLODBIAS, *(DWORD*)&mipBias);
+            if (FAILED(hr))
+                OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Unable to set texture mipmap bias",
+                            "D3D9RenderSystem::_setSampler");
+        }
+
+        D3D9Mappings::eD3DTexType texType = mTexStageDesc[unit].texType;
+        hr = __SetSamplerState(samplerId, D3D9Mappings::get(FT_MIN),
+                               D3D9Mappings::get(FT_MIN, sampler.getFiltering(FT_MIN), caps, texType));
+        if (FAILED(hr))
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set texture filter ", "D3D9RenderSystem::_setSampler");
+        hr = __SetSamplerState(samplerId, D3D9Mappings::get(FT_MAG),
+                               D3D9Mappings::get(FT_MAG, sampler.getFiltering(FT_MAG), caps, texType));
+        if (FAILED(hr))
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set texture filter ", "D3D9RenderSystem::_setSampler");
+        hr = __SetSamplerState(samplerId, D3D9Mappings::get(FT_MIP),
+                               D3D9Mappings::get(FT_MIP, sampler.getFiltering(FT_MIP), caps, texType));
+        if (FAILED(hr))
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set texture filter ", "D3D9RenderSystem::_setSampler");
+    }
     //---------------------------------------------------------------------
     void D3D9RenderSystem::_setVertexTexture(size_t stage, const TexturePtr& tex)
     {
@@ -2327,7 +2360,7 @@ namespace Ogre
     }
     //---------------------------------------------------------------------
     void D3D9RenderSystem::_setTextureAddressingMode( size_t stage, 
-        const TextureUnitState::UVWAddressingMode& uvw )
+        const Sampler::UVWAddressingMode& uvw )
     {
         HRESULT hr;
         if( FAILED( hr = __SetSamplerState( getSamplerId(stage), D3DSAMP_ADDRESSU, D3D9Mappings::get(uvw.u, mDeviceManager->getActiveDevice()->getD3D9DeviceCaps()) ) ) )
@@ -2470,32 +2503,6 @@ namespace Ogre
         }
     }
     //---------------------------------------------------------------------
-    void D3D9RenderSystem::_setSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op )
-    {
-        HRESULT hr;
-        if( sourceFactor == SBF_ONE && destFactor == SBF_ZERO)
-        {
-            if (FAILED(hr = __SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE)))
-                OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set alpha blending option", "D3D9RenderSystem::_setSceneBlending" );
-        }
-        else
-        {
-            if (FAILED(hr = __SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE)))
-                OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set alpha blending option", "D3D9RenderSystem::_setSceneBlending" );
-            if (FAILED(hr = __SetRenderState(D3DRS_SEPARATEALPHABLENDENABLE, FALSE)))
-                OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set separate alpha blending option", "D3D9RenderSystem::_setSceneBlending" );
-            if( FAILED( hr = __SetRenderState( D3DRS_SRCBLEND, D3D9Mappings::get(sourceFactor) ) ) )
-                OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set source blend", "D3D9RenderSystem::_setSceneBlending" );
-            if( FAILED( hr = __SetRenderState( D3DRS_DESTBLEND, D3D9Mappings::get(destFactor) ) ) )
-                OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set destination blend", "D3D9RenderSystem::_setSceneBlending" );
-        }
-
-        if (FAILED(hr = __SetRenderState(D3DRS_BLENDOP, D3D9Mappings::get(op))))
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set scene blending operation option", "D3D9RenderSystem::_setSceneBlendingOperation" );
-        if (FAILED(hr = __SetRenderState(D3DRS_BLENDOPALPHA, D3D9Mappings::get(op))))
-            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to set scene blending operation option", "D3D9RenderSystem::_setSceneBlendingOperation" );
-    }
-    //---------------------------------------------------------------------
     void D3D9RenderSystem::_setSeparateSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, 
         SceneBlendFactor destFactorAlpha, SceneBlendOperation op, SceneBlendOperation alphaOp )
     {
@@ -2617,8 +2624,8 @@ namespace Ogre
 
         if( enabled )
         {
-            // Use w-buffer if available and enabled
-            if( mWBuffer && mDeviceManager->getActiveDevice()->getD3D9DeviceCaps().RasterCaps & D3DPRASTERCAPS_WBUFFER )
+            // If we have 16bit depth buffer enable w-buffering.
+            if((mActiveRenderTarget->getColourDepth() == 16) && mCurrentCapabilities->hasCapability(RSC_WBUFFER) )
                 hr = __SetRenderState( D3DRS_ZENABLE, D3DZB_USEW );
             else
                 hr = __SetRenderState( D3DRS_ZENABLE, D3DZB_TRUE );

@@ -101,12 +101,10 @@ namespace Ogre {
 
             GLenum mPolygonMode;
 
-            GLint getCombinedMinMipFilter(void) const;
-
             GLSLESProgram* mCurrentVertexProgram;
             GLSLESProgram* mCurrentFragmentProgram;
 
-            GLint getTextureAddressingMode(TextureUnitState::TextureAddressingMode tam) const;
+            GLint getTextureAddressingMode(TextureAddressingMode tam) const;
             GLenum getBlendMode(SceneBlendFactor ogreBlend) const;
             void bindVertexElementToGpu(const VertexElement& elem,
                                         const HardwareVertexBufferSharedPtr& vertexBuffer,
@@ -164,12 +162,11 @@ namespace Ogre {
             // -----------------------------
             // Low-level overridden members
             // -----------------------------
-
-            bool areFixedFunctionLightsInViewSpace() const { return true; }
-
             void _setTexture(size_t unit, bool enabled, const TexturePtr &tex);
 
-            void _setTextureAddressingMode(size_t stage, const TextureUnitState::UVWAddressingMode& uvw);
+            void _setSampler(size_t unit, Sampler& sampler);
+
+            void _setTextureAddressingMode(size_t stage, const Sampler::UVWAddressingMode& uvw);
 
             void _setTextureBorderColour(size_t stage, const ColourValue& colour) { };   // Not supported
 
@@ -235,7 +232,6 @@ namespace Ogre {
             void unregisterThread();
             void preExtraThreadsStarted();
             void postExtraThreadsStarted();
-            void setClipPlanesImpl(const Ogre::PlaneList& planeList) {}
 
             // ----------------------------------
             // GLES2RenderSystem specific members
@@ -280,17 +276,12 @@ namespace Ogre {
             void bindGpuProgramParameters(GpuProgramType gptype, GpuProgramParametersSharedPtr params, uint16 mask);
             void bindGpuProgramPassIterationParameters(GpuProgramType gptype);
 
-            /// @copydoc RenderSystem::_setSceneBlending
-            void _setSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op );
             /// @copydoc RenderSystem::_setSeparateSceneBlending
             void _setSeparateSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha, SceneBlendOperation op, SceneBlendOperation alphaOp );
             /// @copydoc RenderSystem::_setAlphaRejectSettings
             void _setAlphaRejectSettings( CompareFunction func, unsigned char value, bool alphaToCoverage );
             /// @copydoc RenderSystem::getDisplayMonitorCount
             unsigned int getDisplayMonitorCount() const;
-
-            void _setSceneBlendingOperation(SceneBlendOperation op);
-            void _setSeparateSceneBlendingOperation(SceneBlendOperation op, SceneBlendOperation alphaOp);
 
             void _destroyDepthBuffer(RenderTarget* pRenderWnd);
         

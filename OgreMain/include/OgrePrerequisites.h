@@ -33,13 +33,6 @@ THE SOFTWARE
 #include <memory>
 
 namespace Ogre {
-    // Define ogre version
-    #define OGRE_VERSION_MAJOR 1
-    #define OGRE_VERSION_MINOR 11
-    #define OGRE_VERSION_PATCH 2
-    #define OGRE_VERSION_SUFFIX ""
-    #define OGRE_VERSION_NAME "Rhagorthua"
-
     #define OGRE_VERSION    ((OGRE_VERSION_MAJOR << 16) | (OGRE_VERSION_MINOR << 8) | OGRE_VERSION_PATCH)
 
     // define the real number values to be used
@@ -253,9 +246,12 @@ namespace Ogre {
     class TransformKeyFrame;
     class Timer;
     class UserObjectBindings;
-    class Vector2;
-    class Vector3;
-    class Vector4;
+    template <int dims, typename T> class Vector;
+    typedef Vector<2, Real> Vector2;
+    typedef Vector<2, int> Vector2i;
+    typedef Vector<3, Real> Vector3;
+    typedef Vector<3, int> Vector3i;
+    typedef Vector<4, Real> Vector4;
     class Viewport;
     class VertexAnimationTrack;
     class VertexBufferBinding;

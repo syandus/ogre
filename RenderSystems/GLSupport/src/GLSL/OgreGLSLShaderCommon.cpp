@@ -126,9 +126,7 @@ namespace Ogre {
         char *out = cpp.Parse (src, src_len, out_size);
         if (!out || !out_size)
             // Failed to preprocess, break out
-            OGRE_EXCEPT (Exception::ERR_RENDERINGAPI_ERROR,
-            "Failed to preprocess shader " + mName,
-            __FUNCTION__);
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR, "Failed to preprocess shader " + mName);
 
         mSource = String (out, out_size);
         if (out < src || out > src + src_len)
@@ -229,17 +227,33 @@ namespace Ogre {
         {
             return RenderOperation::OT_LINE_LIST;
         }
+        else if (val == "line_list_adj")
+        {
+            return RenderOperation::OT_LINE_LIST_ADJ;
+        }
         else if (val == "line_strip")
         {
             return RenderOperation::OT_LINE_STRIP;
+        }
+        else if (val == "line_strip_adj")
+        {
+            return RenderOperation::OT_LINE_STRIP_ADJ;
         }
         else if (val == "triangle_strip")
         {
             return RenderOperation::OT_TRIANGLE_STRIP;
         }
+        else if (val == "triangle_strip_adj")
+        {
+            return RenderOperation::OT_TRIANGLE_STRIP_ADJ;
+        }
         else if (val == "triangle_fan")
         {
             return RenderOperation::OT_TRIANGLE_FAN;
+        }
+        else if (val == "triangle_list_adj")
+        {
+            return RenderOperation::OT_TRIANGLE_LIST_ADJ;
         }
         else 
         {
@@ -258,14 +272,26 @@ namespace Ogre {
         case RenderOperation::OT_LINE_LIST:
             return "line_list";
             break;
+        case RenderOperation::OT_LINE_LIST_ADJ:
+            return "line_list_adj";
+            break;
         case RenderOperation::OT_LINE_STRIP:
             return "line_strip";
+            break;
+        case RenderOperation::OT_LINE_STRIP_ADJ:
+            return "line_strip_adj";
             break;
         case RenderOperation::OT_TRIANGLE_STRIP:
             return "triangle_strip";
             break;
+        case RenderOperation::OT_TRIANGLE_STRIP_ADJ:
+            return "triangle_strip_adj";
+            break;
         case RenderOperation::OT_TRIANGLE_FAN:
             return "triangle_fan";
+            break;
+        case RenderOperation::OT_TRIANGLE_LIST_ADJ:
+            return "triangle_list_adj";
             break;
         case RenderOperation::OT_TRIANGLE_LIST:
         default:

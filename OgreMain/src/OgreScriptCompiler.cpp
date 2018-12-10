@@ -205,7 +205,11 @@ namespace Ogre
         ss << "ScriptCompiler - " << ScriptCompiler::formatErrorCode(code) << " in " << file << "(" << line << ")";
         if(!msg.empty())
             ss << ": " << msg;
-        LogManager::getSingleton().logError(ss.str());
+        
+        if(code == ScriptCompiler::CE_DEPRECATEDSYMBOL)
+            LogManager::getSingleton().logWarning(ss.str());
+        else
+            LogManager::getSingleton().logError(ss.str());
     }
 
     bool ScriptCompilerListener::handleEvent(ScriptCompiler *compiler, ScriptCompilerEvent *evt, void *retval)
@@ -232,6 +236,8 @@ namespace Ogre
             return "object name expected";
         case CE_OBJECTALLOCATIONERROR:
             return "object allocation error";
+        case CE_OBJECTBASENOTFOUND:
+            return "base object not found";
         case CE_INVALIDPARAMETERS:
             return "invalid parameters";
         case CE_DUPLICATEOVERRIDE:
@@ -242,6 +248,8 @@ namespace Ogre
             return "reference to a non existing object";
         case CE_UNEXPECTEDTOKEN:
             return "unexpected token";
+        case CE_DEPRECATEDSYMBOL:
+            return "deprecated symbol";
         default:
             return "unknown error";
         }
@@ -614,8 +622,7 @@ namespace Ogre
                             overlayObject(**j, *obj);
                         }
                     } else {
-                        addError(CE_OBJECTBASENOTFOUND, obj->file, obj->line,
-                            "base object named \"" + base + "\" not found in script definition");
+                        addError(CE_OBJECTBASENOTFOUND, obj->file, obj->line, base);
                     }
                 }
 
@@ -921,7 +928,7 @@ namespace Ogre
                 else
                 {
                     // Error
-                    addError(CE_UNDEFINEDVARIABLE, var->file, var->line);
+                    addError(CE_UNDEFINEDVARIABLE, var->file, var->line, var->name);
                 }
 
                 // Remove the variable node
@@ -1232,6 +1239,10 @@ namespace Ogre
         mIds["subroutine"] = ID_SUBROUTINE;
 
         mIds["line_width"] = ID_LINE_WIDTH;
+        mIds["sampler"] = ID_SAMPLER;
+        mIds["sampler_ref"] = ID_SAMPLER_REF;
+        mIds["thread_groups"] = ID_THREAD_GROUPS;
+        mIds["render_custom"] = ID_RENDER_CUSTOM;
 
 		mLargestRegisteredWordId = ID_END_BUILTIN_IDS;
 	}
@@ -1432,6 +1443,11 @@ namespace Ogre
                         atom->line = (*iter)->line;
                         atom->type = ANT_ATOM;
                         atom->value = (*iter)->token;
+
+                        auto idpos = mCompiler->mIds.find(atom->value);
+                        if(idpos != mCompiler->mIds.end())
+                            atom->id = idpos->second;
+
                         impl->values.push_back(AbstractNodePtr(atom));
                     }
                     ++iter;

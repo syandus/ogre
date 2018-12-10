@@ -31,7 +31,7 @@ THE SOFTWARE.
 #include "OgreGLNativeSupport.h"
 
 #if OGRE_PLATFORM == OGRE_PLATFORM_ANDROID || OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
-#include <OgreEGLWindow.h>
+#include "OgreEGLWindow.h"
 #endif
 
 namespace Ogre {
@@ -44,10 +44,7 @@ namespace Ogre {
 
     String GLRenderSystemCommon::VideoMode::getDescription() const
     {
-        char tmp[128];
-        // specify width for correct lexicographical sorting
-        sprintf( tmp, "%4d x %4d", width, height);
-        return String(tmp);
+        return StringUtil::format("%4d x %4d", width, height);
     }
 
     void GLRenderSystemCommon::initConfigOptions()

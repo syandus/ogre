@@ -199,8 +199,6 @@ namespace Ogre
 #endif
 
     protected:
-        void setClipPlanesImpl(const PlaneList& clipPlanes);
-
         /**
          * With DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL flag render target views are unbound
          * from us each Present(), and we need the way to reestablish connection.
@@ -281,10 +279,10 @@ namespace Ogre
         D3D11HLSLProgram* _getBoundTessellationDomainProgram() const;
         D3D11HLSLProgram* _getBoundComputeProgram() const;
         void _setTexture(size_t unit, bool enabled, const TexturePtr &texPtr);
-        void _setTextureAddressingMode(size_t stage, const TextureUnitState::UVWAddressingMode& uvw);
+        void _setSampler(size_t unit, Sampler& sampler);
+        void _setTextureAddressingMode(size_t stage, const Sampler::UVWAddressingMode& uvw);
         void _setTextureBorderColour(size_t stage, const ColourValue& colour);
         void _setTextureMipmapBias(size_t unit, float bias);
-        void _setSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op = SBO_ADD);
         void _setSeparateSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, 
             SceneBlendFactor destFactorAlpha, SceneBlendOperation op = SBO_ADD, SceneBlendOperation alphaOp = SBO_ADD);
         void _setAlphaRejectSettings( CompareFunction func, unsigned char value, bool alphaToCoverage );
@@ -317,6 +315,7 @@ namespace Ogre
         void setVertexBufferBinding(VertexBufferBinding* binding);
         /** render using the feature of reading back the inactive depth-stencil buffers as texture*/
         void _renderUsingReadBackAsTexture(unsigned int passNr, Ogre::String variableName,unsigned int StartSlot);
+        void _dispatchCompute(const Vector3i& workgroupDim);
         void _render(const RenderOperation& op);
 
         void bindGpuProgram(GpuProgram* prg);
@@ -345,11 +344,6 @@ namespace Ogre
          * Set current render target to target, enabling its GL context if needed
          */
         void _setRenderTarget(RenderTarget *target);
-
-        /** Check whether or not filtering is supported for the precise texture format requested
-        with the given usage options.
-        */
-        bool _checkTextureFilteringSupported(TextureType ttype, PixelFormat format, int usage);
 
         void determineFSAASettings(uint fsaa, const String& fsaaHint, DXGI_FORMAT format, DXGI_SAMPLE_DESC* outFSAASettings);
 

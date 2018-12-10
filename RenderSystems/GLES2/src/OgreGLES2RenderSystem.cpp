@@ -112,6 +112,48 @@ namespace Ogre {
     }
 #endif
 
+    static GLint getCombinedMinMipFilter(FilterOptions min, FilterOptions mip)
+    {
+        switch(min)
+        {
+        case FO_ANISOTROPIC:
+        case FO_LINEAR:
+            switch (mip)
+            {
+            case FO_ANISOTROPIC:
+            case FO_LINEAR:
+                // linear min, linear mip
+                return GL_LINEAR_MIPMAP_LINEAR;
+            case FO_POINT:
+                // linear min, point mip
+                return GL_LINEAR_MIPMAP_NEAREST;
+            case FO_NONE:
+                // linear min, no mip
+                return GL_LINEAR;
+            }
+            break;
+        case FO_POINT:
+        case FO_NONE:
+            switch (mip)
+            {
+            case FO_ANISOTROPIC:
+            case FO_LINEAR:
+                // nearest min, linear mip
+                return GL_NEAREST_MIPMAP_LINEAR;
+            case FO_POINT:
+                // nearest min, point mip
+                return GL_NEAREST_MIPMAP_NEAREST;
+            case FO_NONE:
+                // nearest min, no mip
+                return GL_NEAREST;
+            }
+            break;
+        }
+
+        // should never get here
+        return 0;
+    }
+
     GLES2RenderSystem::GLES2RenderSystem()
         : mStateCacheManager(0),
           mGpuProgramManager(0),
@@ -659,8 +701,7 @@ namespace Ogre {
         {
             // Unlike D3D9, OGL doesn't allow sharing the main depth buffer, so keep them separate.
             // Only Copy does, but Copy means only one depth buffer...
-            GLContext *windowContext = 0;
-            win->getCustomAttribute( "GLCONTEXT", &windowContext );
+            GLContext *windowContext = dynamic_cast<GLRenderTarget*>(win)->getContext();
             GLES2DepthBuffer *depthBuffer = OGRE_NEW GLES2DepthBuffer( DepthBuffer::POOL_DEFAULT, this,
                                                             windowContext, 0, 0,
                                                             win->getWidth(), win->getHeight(),
@@ -682,10 +723,7 @@ namespace Ogre {
         // Only FBO & pbuffer support different depth buffers, so everything
         // else creates dummy (empty) containers
         // retVal = mRTTManager->_createDepthBufferFor( renderTarget );
-        GLES2FrameBufferObject *fbo = 0;
-        renderTarget->getCustomAttribute("FBO", &fbo);
-
-        if( fbo )
+        if( auto fbo = dynamic_cast<GLRenderTarget*>(renderTarget)->getFBO() )
         {
             // Presence of an FBO means the manager is an FBO Manager, that's why it's safe to downcast
             // Find best depth & stencil format suited for the RT's format
@@ -741,8 +779,7 @@ namespace Ogre {
 
     void GLES2RenderSystem::_destroyDepthBuffer(RenderTarget* pWin)
     {
-        GLContext *windowContext = 0;
-        pWin->getCustomAttribute("GLCONTEXT", &windowContext);
+        GLContext *windowContext = dynamic_cast<GLRenderTarget*>(pWin)->getContext();
         
         // 1 Window <-> 1 Context, should be always true
         assert( windowContext );
@@ -799,16 +836,61 @@ namespace Ogre {
 
             mStateCacheManager->bindGLTexture(mTextureTypes[stage], tex->getGLID());
         }
-        else
-        {
-            // Bind zero texture
-            mStateCacheManager->bindGLTexture(GL_TEXTURE_2D, 0);
-        }
-
-        mStateCacheManager->activateGLTextureUnit(0);
     }
 
-    GLint GLES2RenderSystem::getTextureAddressingMode(TextureUnitState::TextureAddressingMode tam) const
+    void GLES2RenderSystem::_setSampler(size_t unit, Sampler& sampler)
+    {
+        if (!mStateCacheManager->activateGLTextureUnit(unit))
+            return;
+
+        GLenum target = mTextureTypes[unit];
+
+        const Sampler::UVWAddressingMode& uvw = sampler.getAddressingMode();
+        mStateCacheManager->setTexParameteri(target, GL_TEXTURE_WRAP_S, getTextureAddressingMode(uvw.u));
+        mStateCacheManager->setTexParameteri(target, GL_TEXTURE_WRAP_T, getTextureAddressingMode(uvw.v));
+        if(getCapabilities()->hasCapability(RSC_TEXTURE_3D))
+            mStateCacheManager->setTexParameteri(target, GL_TEXTURE_WRAP_R, getTextureAddressingMode(uvw.w));
+
+        if ((uvw.u == TAM_BORDER || uvw.v == TAM_BORDER || uvw.w == TAM_BORDER) && checkExtension("GL_EXT_texture_border_clamp"))
+            OGRE_CHECK_GL_ERROR(glTexParameterfv( target, GL_TEXTURE_BORDER_COLOR_EXT, sampler.getBorderColour().ptr()));
+
+        // only via shader..
+        // OGRE_CHECK_GL_ERROR(glTexParameterf(target, GL_TEXTURE_LOD_BIAS, sampler.getTextureMipmapBias()));
+
+        if (mCurrentCapabilities->hasCapability(RSC_ANISOTROPY))
+            mStateCacheManager->setTexParameteri(
+                target, GL_TEXTURE_MAX_ANISOTROPY_EXT,
+                std::min<uint>(getCapabilities()->getMaxSupportedAnisotropy(), sampler.getAnisotropy()));
+
+        if(hasMinGLVersion(3, 0))
+        {
+            mStateCacheManager->setTexParameteri(target, GL_TEXTURE_COMPARE_MODE,
+                                                 sampler.getCompareEnabled() ? GL_COMPARE_REF_TO_TEXTURE
+                                                                                    : GL_NONE);
+            if(sampler.getCompareEnabled())
+                mStateCacheManager->setTexParameteri(target, GL_TEXTURE_COMPARE_FUNC,
+                                                 convertCompareFunction(sampler.getCompareFunction()));
+        }
+
+        // Combine with existing mip filter
+        mStateCacheManager->setTexParameteri(
+            target, GL_TEXTURE_MIN_FILTER,
+            getCombinedMinMipFilter(sampler.getFiltering(FT_MIN), sampler.getFiltering(FT_MIP)));
+
+        switch (sampler.getFiltering(FT_MAG))
+        {
+        case FO_ANISOTROPIC: // GL treats linear and aniso the same
+        case FO_LINEAR:
+            mStateCacheManager->setTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            break;
+        case FO_POINT:
+        case FO_NONE:
+            mStateCacheManager->setTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            break;
+        }
+    }
+
+    GLint GLES2RenderSystem::getTextureAddressingMode(TextureAddressingMode tam) const
     {
         switch (tam)
         {
@@ -823,7 +905,7 @@ namespace Ogre {
         }
     }
 
-    void GLES2RenderSystem::_setTextureAddressingMode(size_t stage, const TextureUnitState::UVWAddressingMode& uvw)
+    void GLES2RenderSystem::_setTextureAddressingMode(size_t stage, const Sampler::UVWAddressingMode& uvw)
     {
         if (!mStateCacheManager->activateGLTextureUnit(stage))
             return;
@@ -833,7 +915,6 @@ namespace Ogre {
 
         if(getCapabilities()->hasCapability(RSC_TEXTURE_3D))
             mStateCacheManager->setTexParameteri(mTextureTypes[stage], GL_TEXTURE_WRAP_R_OES, getTextureAddressingMode(uvw.w));
-        mStateCacheManager->activateGLTextureUnit(0);
     }
 
     void GLES2RenderSystem::_setLineWidth(float width)
@@ -871,45 +952,6 @@ namespace Ogre {
         return GL_ONE;
     }
 
-    void GLES2RenderSystem::_setSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op)
-    {
-        GLenum sourceBlend = getBlendMode(sourceFactor);
-        GLenum destBlend = getBlendMode(destFactor);
-        if(sourceFactor == SBF_ONE && destFactor == SBF_ZERO)
-        {
-            mStateCacheManager->setDisabled(GL_BLEND);
-        }
-        else
-        {
-            mStateCacheManager->setEnabled(GL_BLEND);
-            mStateCacheManager->setBlendFunc(sourceBlend, destBlend);
-        }
-        
-        GLint func = GL_FUNC_ADD;
-        switch(op)
-        {
-        case SBO_ADD:
-            func = GL_FUNC_ADD;
-            break;
-        case SBO_SUBTRACT:
-            func = GL_FUNC_SUBTRACT;
-            break;
-        case SBO_REVERSE_SUBTRACT:
-            func = GL_FUNC_REVERSE_SUBTRACT;
-            break;
-        case SBO_MIN:
-            if(hasMinGLVersion(3, 0) || checkExtension("GL_EXT_blend_minmax"))
-                func = GL_MIN_EXT;
-            break;
-        case SBO_MAX:
-            if(hasMinGLVersion(3, 0) || checkExtension("GL_EXT_blend_minmax"))
-                func = GL_MAX_EXT;
-            break;
-        }
-
-        mStateCacheManager->setBlendEquation(func);
-    }
-
     void GLES2RenderSystem::_setSeparateSceneBlending(
         SceneBlendFactor sourceFactor, SceneBlendFactor destFactor,
         SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha,
@@ -928,7 +970,7 @@ namespace Ogre {
         else
         {
             mStateCacheManager->setEnabled(GL_BLEND);
-            OGRE_CHECK_GL_ERROR(glBlendFuncSeparate(sourceBlend, destBlend, sourceBlendAlpha, destBlendAlpha));
+            mStateCacheManager->setBlendFunc(sourceBlend, destBlend, sourceBlendAlpha, destBlendAlpha);
         }
         
         GLint func = GL_FUNC_ADD, alphaFunc = GL_FUNC_ADD;
@@ -1271,48 +1313,6 @@ namespace Ogre {
         }
     }
 
-    GLint GLES2RenderSystem::getCombinedMinMipFilter(void) const
-    {
-        switch(mMinFilter)
-        {
-            case FO_ANISOTROPIC:
-            case FO_LINEAR:
-                switch (mMipFilter)
-                {
-                    case FO_ANISOTROPIC:
-                    case FO_LINEAR:
-                        // linear min, linear mip
-                        return GL_LINEAR_MIPMAP_LINEAR;
-                    case FO_POINT:
-                        // linear min, point mip
-                        return GL_LINEAR_MIPMAP_NEAREST;
-                    case FO_NONE:
-                        // linear min, no mip
-                        return GL_LINEAR;
-                }
-                break;
-            case FO_POINT:
-            case FO_NONE:
-                switch (mMipFilter)
-                {
-                    case FO_ANISOTROPIC:
-                    case FO_LINEAR:
-                        // nearest min, linear mip
-                        return GL_NEAREST_MIPMAP_LINEAR;
-                    case FO_POINT:
-                        // nearest min, point mip
-                        return GL_NEAREST_MIPMAP_NEAREST;
-                    case FO_NONE:
-                        // nearest min, no mip
-                        return GL_NEAREST;
-                }
-                break;
-        }
-
-        // should never get here
-        return 0;
-    }
-
     void GLES2RenderSystem::_setTextureUnitFiltering(size_t unit, FilterOptions minFilter,
                 FilterOptions magFilter, FilterOptions mipFilter)
     {       
@@ -1337,7 +1337,7 @@ namespace Ogre {
                 // Combine with existing mip filter
                 mStateCacheManager->setTexParameteri(mTextureTypes[unit],
                                 GL_TEXTURE_MIN_FILTER,
-                                getCombinedMinMipFilter());
+                                getCombinedMinMipFilter(mMinFilter, mMipFilter));
                 break;
             case FT_MAG:
                 switch (fo)
@@ -1362,12 +1362,10 @@ namespace Ogre {
                 // Combine with existing min filter
                 mStateCacheManager->setTexParameteri(mTextureTypes[unit],
                                                      GL_TEXTURE_MIN_FILTER,
-                                                     getCombinedMinMipFilter());
+                                                     getCombinedMinMipFilter(mMinFilter, mMipFilter));
                 
                 break;
         }
-
-        mStateCacheManager->activateGLTextureUnit(0);
     }
 
     void GLES2RenderSystem::_setTextureLayerAnisotropy(size_t unit, unsigned int maxAnisotropy)
@@ -1384,8 +1382,6 @@ namespace Ogre {
 
         mStateCacheManager->setTexParameterf(mTextureTypes[unit],
                                               GL_TEXTURE_MAX_ANISOTROPY_EXT, (float)maxAnisotropy);
-
-        mStateCacheManager->activateGLTextureUnit(0);
     }
 
     void GLES2RenderSystem::_render(const RenderOperation& op)
@@ -1733,12 +1729,9 @@ namespace Ogre {
         
         for(RenderTargetMap::iterator it = mRenderTargets.begin(); it!=mRenderTargets.end(); ++it)
         {
-            RenderTarget* target = it->second;
-            if(target)
+            if(auto target = dynamic_cast<GLRenderTarget*>(it->second))
             {
-                GLES2FrameBufferObject *fbo = 0;
-                target->getCustomAttribute("FBO", &fbo);
-                if(fbo)
+                if(auto fbo = target->getFBO())
                     fbo->notifyContextDestroyed(context);
             }
         }
@@ -1801,14 +1794,16 @@ namespace Ogre {
             return;
 
         // Enable primitive restarting with fixed indices depending upon the data type
+        // https://www.khronos.org/registry/webgl/specs/latest/2.0/#NO_PRIMITIVE_RESTART_FIXED_INDEX
+#if OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN
         OGRE_CHECK_GL_ERROR(glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX));
+#endif
     }
 
     void GLES2RenderSystem::initialiseContext(RenderWindow* primary)
     {
         // Set main and current context
-        mMainContext = 0;
-        primary->getCustomAttribute("GLCONTEXT", &mMainContext);
+        mMainContext = dynamic_cast<GLRenderTarget*>(primary)->getContext();
         mCurrentContext = mMainContext;
 
         // Set primary context as active
@@ -1853,8 +1848,7 @@ namespace Ogre {
         if (target && mRTTManager)
         {
             // Switch context if different from current one
-            GLContext *newContext = 0;
-            target->getCustomAttribute("GLCONTEXT", &newContext);
+            GLContext *newContext = dynamic_cast<GLRenderTarget*>(target)->getContext();
             if (newContext && mCurrentContext != newContext)
             {
                 _switchContext(newContext);
@@ -2166,12 +2160,22 @@ namespace Ogre {
 
     void GLES2RenderSystem::_setTextureUnitCompareFunction(size_t unit, CompareFunction function)
     {
-        //no effect in GLES2 rendersystem
+        if (!mStateCacheManager->activateGLTextureUnit(unit) || !hasMinGLVersion(3, 0))
+            return;
+
+        mStateCacheManager->setTexParameteri(mTextureTypes[unit],
+                                            GL_TEXTURE_COMPARE_FUNC,
+                                            convertCompareFunction(function));
     }
 
     void GLES2RenderSystem::_setTextureUnitCompareEnabled(size_t unit, bool compare)
     {
-        //no effect in GLES2 rendersystem
+        if (!mStateCacheManager->activateGLTextureUnit(unit) || !hasMinGLVersion(3, 0))
+            return;
+
+        mStateCacheManager->setTexParameteri(mTextureTypes[unit],
+                                            GL_TEXTURE_COMPARE_MODE,
+                                            compare ? GL_COMPARE_REF_TO_TEXTURE : GL_NONE);
     }
 
     void GLES2RenderSystem::bindVertexElementToGpu(
@@ -2242,7 +2246,7 @@ namespace Ogre {
         GLenum format = GLES2PixelUtil::getGLOriginFormat(dst.format);
         GLenum type = GLES2PixelUtil::getGLOriginDataType(dst.format);
 
-        if ((format == 0) || (type == 0))
+        if (dst.format != PF_BYTE_RGBA)
         {
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS,
                 "Unsupported format.",

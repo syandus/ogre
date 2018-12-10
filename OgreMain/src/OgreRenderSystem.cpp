@@ -38,7 +38,7 @@ THE SOFTWARE.
 #include "OgreHardwareOcclusionQuery.h"
 
 #ifdef OGRE_BUILD_COMPONENT_RTSHADERSYSTEM
-#include <OgreRTShaderConfig.h>
+#include "OgreRTShaderConfig.h"
 #endif
 
 namespace Ogre {
@@ -55,7 +55,6 @@ namespace Ogre {
         // This means CULL clockwise vertices, i.e. front of poly is counter-clockwise
         // This makes it the same as OpenGL and other right-handed systems
         , mCullingMode(CULL_CLOCKWISE)
-        , mWBuffer(false)
         , mBatchCount(0)
         , mFaceCount(0)
         , mVertexCount(0)
@@ -337,45 +336,18 @@ namespace Ogre {
         {
             // Shared vertex / fragment textures or no vertex texture support
             // Bind texture (may be blank)
-            _setTexture(texUnit, true, tex);
+            _setTexture(texUnit, true, tl.isTextureLoadFailing() ? sNullTexPtr : tex);
         }
 
         // Set texture coordinate set
         _setTextureCoordSet(texUnit, tl.getTextureCoordSet());
 
-        //Set texture layer compare state and function 
-        _setTextureUnitCompareEnabled(texUnit,tl.getTextureCompareEnabled());
-        _setTextureUnitCompareFunction(texUnit,tl.getTextureCompareFunction());
-
-
-        // Set texture layer filtering
-        _setTextureUnitFiltering(texUnit, 
-            tl.getTextureFiltering(FT_MIN), 
-            tl.getTextureFiltering(FT_MAG), 
-            tl.getTextureFiltering(FT_MIP));
-
-        // Set texture layer filtering
-        _setTextureLayerAnisotropy(texUnit, tl.getTextureAnisotropy());
-
-        // Set mipmap biasing
-        _setTextureMipmapBias(texUnit, tl.getTextureMipmapBias());
+        _setSampler(texUnit, *tl.getSampler());
 
         // Set blend modes
         // Note, colour before alpha is important
         _setTextureBlendMode(texUnit, tl.getColourBlendMode());
         _setTextureBlendMode(texUnit, tl.getAlphaBlendMode());
-
-        // Texture addressing mode
-        const TextureUnitState::UVWAddressingMode& uvw = tl.getTextureAddressingMode();
-        _setTextureAddressingMode(texUnit, uvw);
-
-        // Set texture border colour only if required
-        if (uvw.u == TextureUnitState::TAM_BORDER ||
-            uvw.v == TextureUnitState::TAM_BORDER ||
-            uvw.w == TextureUnitState::TAM_BORDER)
-        {
-            _setTextureBorderColour(texUnit, tl.getTextureBorderColour());
-        }
 
         // Set texture effects
         TextureUnitState::EffectMap::iterator effi;
@@ -532,12 +504,13 @@ namespace Ogre {
     }
     bool RenderSystem::getWBufferEnabled(void) const
     {
-        return mWBuffer;
+        return mCurrentCapabilities->hasCapability(RSC_WBUFFER);
     }
     //-----------------------------------------------------------------------
     void RenderSystem::setWBufferEnabled(bool enabled)
     {
-        mWBuffer = enabled;
+        enabled ? mCurrentCapabilities->setCapability(RSC_WBUFFER)
+                : mCurrentCapabilities->unsetCapability(RSC_WBUFFER);
     }
     //-----------------------------------------------------------------------
     void RenderSystem::shutdown(void)
@@ -626,45 +599,17 @@ namespace Ogre {
         case RenderOperation::OT_TRIANGLE_LIST:
             mFaceCount += (val / 3);
             break;
+        case RenderOperation::OT_TRIANGLE_LIST_ADJ:
+            mFaceCount += (val / 6);
+            break;
+        case RenderOperation::OT_TRIANGLE_STRIP_ADJ:
+            mFaceCount += (val / 2 - 2);
+            break;
         case RenderOperation::OT_TRIANGLE_STRIP:
         case RenderOperation::OT_TRIANGLE_FAN:
             mFaceCount += (val - 2);
             break;
-        case RenderOperation::OT_POINT_LIST:
-        case RenderOperation::OT_LINE_LIST:
-        case RenderOperation::OT_LINE_STRIP:
-        case RenderOperation::OT_PATCH_1_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_2_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_3_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_4_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_5_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_6_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_7_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_8_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_9_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_10_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_11_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_12_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_13_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_14_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_15_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_16_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_17_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_18_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_19_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_20_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_21_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_22_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_23_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_24_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_25_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_26_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_27_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_28_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_29_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_30_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_31_CONTROL_POINT:
-        case RenderOperation::OT_PATCH_32_CONTROL_POINT:
+        default:
             break;
         }
 

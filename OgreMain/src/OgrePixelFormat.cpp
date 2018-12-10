@@ -266,10 +266,7 @@ namespace Ogre {
     //-----------------------------------------------------------------------
     bool PixelUtil::isAccessible(PixelFormat srcformat)
     {
-        if (srcformat == PF_UNKNOWN)
-            return false;
-        unsigned int flags = getFlags(srcformat);
-        return !((flags & PFF_COMPRESSED) || (flags & PFF_DEPTH));
+        return (srcformat != PF_UNKNOWN) && !isCompressed(srcformat);
     }
     //-----------------------------------------------------------------------
     PixelComponentType PixelUtil::getComponentType(PixelFormat fmt)
@@ -302,6 +299,17 @@ namespace Ogre {
                     return pf;
             }
         }
+
+        // allow look-up by alias name
+        if(tmp == "PF_BYTE_RGB")
+            return PF_BYTE_RGB;
+        if(tmp == "PF_BYTE_RGBA")
+            return PF_BYTE_RGBA;
+        if(tmp == "PF_BYTE_BGR")
+            return PF_BYTE_BGR;
+        if(tmp == "PF_BYTE_BGRA")
+            return PF_BYTE_BGRA;
+
         return PF_UNKNOWN;
     }
     //-----------------------------------------------------------------------
@@ -496,7 +504,7 @@ namespace Ogre {
                 ((float*)dest)[2] = b;
                 ((float*)dest)[3] = a;
                 break;
-            case PF_DEPTH:
+            case PF_DEPTH16:
             case PF_FLOAT16_R:
                 ((uint16*)dest)[0] = Bitwise::floatToHalf(r);
                 break;
@@ -644,7 +652,6 @@ namespace Ogre {
                 *b = ((const float*)src)[2];
                 *a = ((const float*)src)[3];
                 break;
-            case PF_DEPTH:
             case PF_FLOAT16_R:
                 *r = *g = *b = Bitwise::halfToFloat(((const uint16*)src)[0]);
                 *a = 1.0f;

@@ -30,6 +30,9 @@ THE SOFTWARE.
 // Program Desc: Per pixel lighting functions.
 // Program Type: Vertex/Pixel shader
 // Language: GLSL
+// Notes: Implements core functions for FFPLighting class.
+// based on lighting engine. 
+// See http://msdn.microsoft.com/en-us/library/bb147178.aspx
 //-----------------------------------------------------------------------------
 
 //-----------------------------------------------------------------------------
@@ -60,6 +63,7 @@ void SGX_Light_Directional_Diffuse(
 	float nDotL = dot(vNormalView, vNegLightDirView);
 	
 	vOut = vBaseColour + vDiffuseColour * clamp(nDotL, 0.0, 1.0);
+	vOut = clamp(vOut, 0.0, 1.0);
 }
 
 //-----------------------------------------------------------------------------
@@ -89,6 +93,8 @@ void SGX_Light_Directional_DiffuseSpecular(
 		vOutDiffuse  += vDiffuseColour * nDotL;		
 		vOutSpecular += vSpecularColour * pow(clamp(nDotH, 0.0, 1.0), fSpecularPower);						
 	}
+	vOutDiffuse = clamp(vOutDiffuse, 0.0, 1.0);
+	vOutSpecular = clamp(vOutSpecular, 0.0, 1.0);
 }
 
 //-----------------------------------------------------------------------------
@@ -113,7 +119,8 @@ void SGX_Light_Point_Diffuse(
 		float fAtten	   = 1.0 / (vAttParams.y + vAttParams.z*fLightD + vAttParams.w*fLightD*fLightD);
 			
 		vOut += vDiffuseColour * nDotL * fAtten;
-	}		
+	}
+	vOut = clamp(vOut, 0.0, 1.0);	
 }
 
 
@@ -150,7 +157,9 @@ void SGX_Light_Point_DiffuseSpecular(
 		
 		vOutDiffuse  += vDiffuseColour * nDotL * fAtten;
 		vOutSpecular += vSpecularColour * pow(clamp(nDotH, 0.0, 1.0), fSpecularPower) * fAtten;					
-	}		
+	}
+	vOutDiffuse = clamp(vOutDiffuse, 0.0, 1.0);
+	vOutSpecular = clamp(vOutSpecular, 0.0, 1.0);
 }
 
 //-----------------------------------------------------------------------------
@@ -180,8 +189,9 @@ void SGX_Light_Spot_Diffuse(
 		float fSpotE	= clamp((rho - vSpotParams.y) / (vSpotParams.x - vSpotParams.y), 0.0, 1.0);
 		float fSpotT	= pow(fSpotE, vSpotParams.z);	
 						
-		vOut += vDiffuseColour * nDotL * fAtten * fSpotT;			
-	}		
+		vOut += vDiffuseColour * nDotL * fAtten * fSpotT;
+	}
+	vOut = clamp(vOut, 0.0, 1.0);
 }
 
 //-----------------------------------------------------------------------------
@@ -222,6 +232,8 @@ void SGX_Light_Spot_DiffuseSpecular(
 						
 		vOutDiffuse  += vDiffuseColour * nDotL * fAtten * fSpotT;
 		vOutSpecular += vSpecularColour * pow(clamp(nDotH, 0.0, 1.0), fSpecularPower) * fAtten * fSpotT;
-	}		
+	}
+	vOutDiffuse = clamp(vOutDiffuse, 0.0, 1.0);
+	vOutSpecular = clamp(vOutSpecular, 0.0, 1.0);
 }
 

@@ -81,7 +81,7 @@ namespace Ogre {
             {GL_RGBA, GL_UNSIGNED_BYTE, GL_RGBA8},               // PF_X8B8G8R8
             {GL_NONE},                                           // PF_R8G8B8A8
 #endif
-            {GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, GL_DEPTH_COMPONENT16}, // PF_DEPTH
+            {GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, GL_DEPTH_COMPONENT16}, // PF_DEPTH16
             {GL_RGBA, GL_UNSIGNED_SHORT, GL_RGBA16UI},           // PF_SHORT_RGBA
             {GL_NONE},                                           // PF_R3G3B2
             {GL_RED, GL_HALF_FLOAT, GL_R16F},                    // PF_FLOAT16_R
@@ -185,7 +185,7 @@ namespace Ogre {
             {GL_RGBA, GL_UNSIGNED_BYTE, GL_RGBA},                // PF_X8B8G8R8
             {GL_NONE},                                           // PF_R8G8B8A8
 #endif
-            {GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, GL_DEPTH_COMPONENT16}, // PF_DEPTH
+            {GL_DEPTH_COMPONENT, GL_UNSIGNED_SHORT, GL_DEPTH_COMPONENT16}, // PF_DEPTH16
             {GL_NONE},                                           // PF_SHORT_RGBA
             {GL_NONE},                                           // PF_R3G3B2
             {GL_RED, GL_HALF_FLOAT_OES, GL_R16F},                // PF_FLOAT16_R
@@ -268,8 +268,12 @@ namespace Ogre {
 
     void GLES2PixelUtil::useSizedFormats()
     {
-#if OGRE_PLATFORM != OGRE_PLATFORM_EMSCRIPTEN // still just Editors Draft
         memcpy(_pixelFormats, _pixelFormatsSized, sizeof(_pixelFormatsSized));
+#if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
+        // disable formats that require swizzling
+        _pixelFormats[PF_L8].internalFormat = GL_NONE;
+        _pixelFormats[PF_L16].internalFormat = GL_NONE;
+        _pixelFormats[PF_BYTE_LA].internalFormat = GL_NONE;
 #endif
     }
 
@@ -328,7 +332,7 @@ namespace Ogre {
         case GL_DEPTH_COMPONENT32_OES:
         case GL_DEPTH_COMPONENT16:
         case GL_DEPTH_COMPONENT:
-            return PF_DEPTH;
+            return PF_DEPTH16;
         case GL_COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR:
         case GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x4_KHR:
         case GL_COMPRESSED_SRGB8_ALPHA8_ASTC_5x5_KHR:

@@ -107,6 +107,48 @@ namespace Ogre {
         return ret;
     }
 
+    static GLint getCombinedMinMipFilter(FilterOptions min, FilterOptions mip)
+    {
+        switch(min)
+        {
+        case FO_ANISOTROPIC:
+        case FO_LINEAR:
+            switch (mip)
+            {
+            case FO_ANISOTROPIC:
+            case FO_LINEAR:
+                // linear min, linear mip
+                return GL_LINEAR_MIPMAP_LINEAR;
+            case FO_POINT:
+                // linear min, point mip
+                return GL_LINEAR_MIPMAP_NEAREST;
+            case FO_NONE:
+                // linear min, no mip
+                return GL_LINEAR;
+            }
+            break;
+        case FO_POINT:
+        case FO_NONE:
+            switch (mip)
+            {
+            case FO_ANISOTROPIC:
+            case FO_LINEAR:
+                // nearest min, linear mip
+                return GL_NEAREST_MIPMAP_LINEAR;
+            case FO_POINT:
+                // nearest min, point mip
+                return GL_NEAREST_MIPMAP_NEAREST;
+            case FO_NONE:
+                // nearest min, no mip
+                return GL_NEAREST;
+            }
+            break;
+        }
+
+        // should never get here
+        return 0;
+    }
+
     GLRenderSystem::GLRenderSystem()
     :   mStopRendering(false),
         mFixedFunctionTextureUnits(0),
@@ -971,8 +1013,7 @@ namespace Ogre {
         {
             //Unlike D3D9, OGL doesn't allow sharing the main depth buffer, so keep them separate.
             //Only Copy does, but Copy means only one depth buffer...
-            GLContext *windowContext = 0;
-            win->getCustomAttribute( GLRenderTexture::CustomAttributeString_GLCONTEXT, &windowContext );
+            GLContext *windowContext = dynamic_cast<GLRenderTarget*>(win)->getContext();;
 
             GLDepthBuffer *depthBuffer = new GLDepthBuffer( DepthBuffer::POOL_DEFAULT, this,
                                                             windowContext, 0, 0,
@@ -994,10 +1035,7 @@ namespace Ogre {
         //Only FBO & pbuffer support different depth buffers, so everything
         //else creates dummy (empty) containers
         //retVal = mRTTManager->_createDepthBufferFor( renderTarget );
-        GLFrameBufferObject *fbo = 0;
-        renderTarget->getCustomAttribute(GLRenderTexture::CustomAttributeString_FBO, &fbo);
-
-        if( fbo )
+        if( auto fbo = dynamic_cast<GLRenderTarget*>(renderTarget)->getFBO() )
         {
             //Presence of an FBO means the manager is an FBO Manager, that's why it's safe to downcast
             //Find best depth & stencil format suited for the RT's format
@@ -1037,8 +1075,7 @@ namespace Ogre {
     void GLRenderSystem::initialiseContext(RenderWindow* primary)
     {
         // Set main and current context
-        mMainContext = 0;
-        primary->getCustomAttribute(GLRenderTexture::CustomAttributeString_GLCONTEXT, &mMainContext);
+        mMainContext = dynamic_cast<GLRenderTarget*>(primary)->getContext();
         mCurrentContext = mMainContext;
 
         // Set primary context as active
@@ -1081,9 +1118,8 @@ namespace Ogre {
         RenderTarget* pWin = detachRenderTarget(name);
         OgreAssert(pWin, "unknown RenderWindow name");
 
-        GLContext *windowContext = 0;
-        pWin->getCustomAttribute(GLRenderTexture::CustomAttributeString_GLCONTEXT, &windowContext);
-
+        GLContext *windowContext = dynamic_cast<GLRenderTarget*>(pWin)->getContext();
+    
         //1 Window <-> 1 Context, should be always true
         assert( windowContext );
 
@@ -1384,8 +1420,6 @@ namespace Ogre {
             glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE,
                       enabled ? GL_TRUE : GL_FALSE);
         }
-        mStateCacheManager->activateGLTextureUnit(0);
-
     }
     //-----------------------------------------------------------------------------
     void GLRenderSystem::_setTexture(size_t stage, bool enabled, const TexturePtr &texPtr)
@@ -1432,12 +1466,62 @@ namespace Ogre {
                 }
                 glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
             }
-            // bind zero texture
-            mStateCacheManager->bindGLTexture(GL_TEXTURE_2D, 0);
+        }
+    }
+
+    void GLRenderSystem::_setSampler(size_t unit, Sampler& sampler)
+    {
+        if (!mStateCacheManager->activateGLTextureUnit(unit))
+            return;
+
+        GLenum target = mTextureTypes[unit];
+
+        const Sampler::UVWAddressingMode& uvw = sampler.getAddressingMode();
+        mStateCacheManager->setTexParameteri(target, GL_TEXTURE_WRAP_S, getTextureAddressingMode(uvw.u));
+        mStateCacheManager->setTexParameteri(target, GL_TEXTURE_WRAP_T, getTextureAddressingMode(uvw.v));
+        mStateCacheManager->setTexParameteri(target, GL_TEXTURE_WRAP_R, getTextureAddressingMode(uvw.w));
+
+        if (uvw.u == TAM_BORDER || uvw.v == TAM_BORDER || uvw.w == TAM_BORDER)
+            glTexParameterfv( target, GL_TEXTURE_BORDER_COLOR, sampler.getBorderColour().ptr());
+
+        if (mCurrentCapabilities->hasCapability(RSC_MIPMAP_LOD_BIAS))
+        {
+            glTexEnvf(GL_TEXTURE_FILTER_CONTROL_EXT, GL_TEXTURE_LOD_BIAS_EXT, sampler.getMipmapBias());
         }
 
-        mStateCacheManager->activateGLTextureUnit(0);
+        if (mCurrentCapabilities->hasCapability(RSC_ANISOTROPY))
+            mStateCacheManager->setTexParameteri(
+                target, GL_TEXTURE_MAX_ANISOTROPY_EXT,
+                std::min<uint>(mCurrentCapabilities->getMaxSupportedAnisotropy(), sampler.getAnisotropy()));
+
+        if(GLEW_VERSION_2_0)
+        {
+            mStateCacheManager->setTexParameteri(target, GL_TEXTURE_COMPARE_MODE,
+                                                 sampler.getCompareEnabled() ? GL_COMPARE_REF_TO_TEXTURE
+                                                                             : GL_NONE);
+            if (sampler.getCompareEnabled())
+                mStateCacheManager->setTexParameteri(target, GL_TEXTURE_COMPARE_FUNC,
+                                                     convertCompareFunction(sampler.getCompareFunction()));
+        }
+
+        // Combine with existing mip filter
+        mStateCacheManager->setTexParameteri(
+            target, GL_TEXTURE_MIN_FILTER,
+            getCombinedMinMipFilter(sampler.getFiltering(FT_MIN), sampler.getFiltering(FT_MIP)));
+
+        switch (sampler.getFiltering(FT_MAG))
+        {
+        case FO_ANISOTROPIC: // GL treats linear and aniso the same
+        case FO_LINEAR:
+            mStateCacheManager->setTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            break;
+        case FO_POINT:
+        case FO_NONE:
+            mStateCacheManager->setTexParameteri(target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            break;
+        }
     }
+
     //-----------------------------------------------------------------------------
     void GLRenderSystem::_setTextureCoordSet(size_t stage, size_t index)
     {
@@ -1588,11 +1672,10 @@ namespace Ogre {
         default:
             break;
         }
-        mStateCacheManager->activateGLTextureUnit(0);
     }
     //-----------------------------------------------------------------------------
     GLint GLRenderSystem::getTextureAddressingMode(
-        TextureUnitState::TextureAddressingMode tam) const
+        TextureAddressingMode tam) const
     {
         switch(tam)
         {
@@ -1609,7 +1692,7 @@ namespace Ogre {
 
     }
     //-----------------------------------------------------------------------------
-    void GLRenderSystem::_setTextureAddressingMode(size_t stage, const TextureUnitState::UVWAddressingMode& uvw)
+    void GLRenderSystem::_setTextureAddressingMode(size_t stage, const Sampler::UVWAddressingMode& uvw)
     {
         if (!mStateCacheManager->activateGLTextureUnit(stage))
             return;
@@ -1619,7 +1702,6 @@ namespace Ogre {
                          getTextureAddressingMode(uvw.v));
         mStateCacheManager->setTexParameteri( mTextureTypes[stage], GL_TEXTURE_WRAP_R,
                          getTextureAddressingMode(uvw.w));
-        mStateCacheManager->activateGLTextureUnit(0);
     }
     //-----------------------------------------------------------------------------
     void GLRenderSystem::_setTextureBorderColour(size_t stage, const ColourValue& colour)
@@ -1628,7 +1710,6 @@ namespace Ogre {
         if (mStateCacheManager->activateGLTextureUnit(stage))
         {
             glTexParameterfv( mTextureTypes[stage], GL_TEXTURE_BORDER_COLOR, border);
-            mStateCacheManager->activateGLTextureUnit(0);
         }
     }
     //-----------------------------------------------------------------------------
@@ -1639,7 +1720,6 @@ namespace Ogre {
             if (mStateCacheManager->activateGLTextureUnit(stage))
             {
                 glTexEnvf(GL_TEXTURE_FILTER_CONTROL_EXT, GL_TEXTURE_LOD_BIAS_EXT, bias);
-                    mStateCacheManager->activateGLTextureUnit(0);
             }
         }
     }
@@ -1669,7 +1749,6 @@ namespace Ogre {
         }
 
         glMatrixMode(GL_MODELVIEW);
-        mStateCacheManager->activateGLTextureUnit(0);
     }
     //-----------------------------------------------------------------------------
     GLint GLRenderSystem::getBlendMode(SceneBlendFactor ogreBlend) const
@@ -1700,43 +1779,6 @@ namespace Ogre {
         // to keep compiler happy
         return GL_ONE;
     }
-
-    void GLRenderSystem::_setSceneBlending(SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendOperation op )
-    {
-        GLint sourceBlend = getBlendMode(sourceFactor);
-        GLint destBlend = getBlendMode(destFactor);
-        if(sourceFactor == SBF_ONE && destFactor == SBF_ZERO)
-        {
-            mStateCacheManager->setEnabled(GL_BLEND, false);
-        }
-        else
-        {
-            mStateCacheManager->setEnabled(GL_BLEND, true);
-            mStateCacheManager->setBlendFunc(sourceBlend, destBlend);
-        }
-
-        GLint func = GL_FUNC_ADD;
-        switch(op)
-        {
-        case SBO_ADD:
-            func = GL_FUNC_ADD;
-            break;
-        case SBO_SUBTRACT:
-            func = GL_FUNC_SUBTRACT;
-            break;
-        case SBO_REVERSE_SUBTRACT:
-            func = GL_FUNC_REVERSE_SUBTRACT;
-            break;
-        case SBO_MIN:
-            func = GL_MIN;
-            break;
-        case SBO_MAX:
-            func = GL_MAX;
-            break;
-        }
-
-        mStateCacheManager->setBlendEquation(func);
-    }
     //-----------------------------------------------------------------------------
     void GLRenderSystem::_setSeparateSceneBlending(
         SceneBlendFactor sourceFactor, SceneBlendFactor destFactor,
@@ -1756,10 +1798,7 @@ namespace Ogre {
         else
         {
             mStateCacheManager->setEnabled(GL_BLEND, true);
-            if(GLEW_VERSION_1_4)
-                glBlendFuncSeparate(sourceBlend, destBlend, sourceBlendAlpha, destBlendAlpha);
-            else if(GLEW_EXT_blend_func_separate)
-                glBlendFuncSeparateEXT(sourceBlend, destBlend, sourceBlendAlpha, destBlendAlpha);
+            mStateCacheManager->setBlendFunc(sourceBlend, destBlend, sourceBlendAlpha, destBlendAlpha);
         }
 
         GLint func = GL_FUNC_ADD, alphaFunc = GL_FUNC_ADD;
@@ -2182,49 +2221,6 @@ namespace Ogre {
         return SOP_KEEP;
     }
     //---------------------------------------------------------------------
-    GLuint GLRenderSystem::getCombinedMinMipFilter(void) const
-    {
-        switch(mMinFilter)
-        {
-        case FO_ANISOTROPIC:
-        case FO_LINEAR:
-            switch(mMipFilter)
-            {
-            case FO_ANISOTROPIC:
-            case FO_LINEAR:
-                // linear min, linear mip
-                return GL_LINEAR_MIPMAP_LINEAR;
-            case FO_POINT:
-                // linear min, point mip
-                return GL_LINEAR_MIPMAP_NEAREST;
-            case FO_NONE:
-                // linear min, no mip
-                return GL_LINEAR;
-            }
-            break;
-        case FO_POINT:
-        case FO_NONE:
-            switch(mMipFilter)
-            {
-            case FO_ANISOTROPIC:
-            case FO_LINEAR:
-                // nearest min, linear mip
-                return GL_NEAREST_MIPMAP_LINEAR;
-            case FO_POINT:
-                // nearest min, point mip
-                return GL_NEAREST_MIPMAP_NEAREST;
-            case FO_NONE:
-                // nearest min, no mip
-                return GL_NEAREST;
-            }
-            break;
-        }
-
-        // should never get here
-        return 0;
-
-    }
-    //---------------------------------------------------------------------
     void GLRenderSystem::_setTextureUnitFiltering(size_t unit,
                                                   FilterType ftype, FilterOptions fo)
     {
@@ -2238,7 +2234,7 @@ namespace Ogre {
             mStateCacheManager->setTexParameteri(
                 mTextureTypes[unit],
                 GL_TEXTURE_MIN_FILTER,
-                getCombinedMinMipFilter());
+                getCombinedMinMipFilter(mMinFilter, mMipFilter));
             break;
         case FT_MAG:
             switch (fo)
@@ -2265,21 +2261,30 @@ namespace Ogre {
             mStateCacheManager->setTexParameteri(
                 mTextureTypes[unit],
                 GL_TEXTURE_MIN_FILTER,
-                getCombinedMinMipFilter());
+                getCombinedMinMipFilter(mMinFilter, mMipFilter));
             break;
         }
-
-        mStateCacheManager->activateGLTextureUnit(0);
     }
     //---------------------------------------------------------------------
     void GLRenderSystem::_setTextureUnitCompareFunction(size_t unit, CompareFunction function)
     {
-        //TODO: implement (opengl 3 only?)
+        if (!mStateCacheManager->activateGLTextureUnit(unit) || !GLEW_VERSION_2_0)
+            return;
+
+        mStateCacheManager->setTexParameteri(mTextureTypes[unit],
+                                            GL_TEXTURE_COMPARE_FUNC,
+                                            convertCompareFunction(function));
     }
     //---------------------------------------------------------------------
     void GLRenderSystem::_setTextureUnitCompareEnabled(size_t unit, bool compare)
     {
-        //TODO: implement (opengl 3 only?)
+        // actually ARB_shadow would be enough..
+        if (!mStateCacheManager->activateGLTextureUnit(unit) || !GLEW_VERSION_2_0)
+            return;
+
+        mStateCacheManager->setTexParameteri(mTextureTypes[unit],
+                                            GL_TEXTURE_COMPARE_MODE,
+                                            compare ? GL_COMPARE_REF_TO_TEXTURE : GL_NONE);
     }
     //---------------------------------------------------------------------
     void GLRenderSystem::_setTextureLayerAnisotropy(size_t unit, unsigned int maxAnisotropy)
@@ -2295,8 +2300,6 @@ namespace Ogre {
             maxAnisotropy = largest_supported_anisotropy ?
                 static_cast<uint>(largest_supported_anisotropy) : 1;
         glTexParameterf(mTextureTypes[unit], GL_TEXTURE_MAX_ANISOTROPY_EXT, maxAnisotropy);
-
-        mStateCacheManager->activateGLTextureUnit(0);
     }
     //-----------------------------------------------------------------------------
     void GLRenderSystem::_setTextureBlendMode(size_t stage, const LayerBlendModeEx& bm)
@@ -2513,8 +2516,6 @@ namespace Ogre {
             glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, cv1);
         if (bm.source2 == LBS_MANUAL)
             glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, cv2);
-
-        mStateCacheManager->activateGLTextureUnit(0);
     }
     //---------------------------------------------------------------------
     void GLRenderSystem::setGLLightPositionDirection(Light* lt, GLenum lightindex)
@@ -2601,25 +2602,39 @@ namespace Ogre {
 
         // Find the correct type to render
         GLint primType;
-        //Use adjacency if there is a geometry program and it requested adjacency info
-        bool useAdjacency = (mGeometryProgramBound && mCurrentGeometryProgram && mCurrentGeometryProgram->isAdjacencyInfoRequired());
-        switch (op.operationType)
+        int operationType = op.operationType;
+        // Use adjacency if there is a geometry program and it requested adjacency info
+        if(mGeometryProgramBound && mCurrentGeometryProgram && mCurrentGeometryProgram->isAdjacencyInfoRequired())
+            operationType |= RenderOperation::OT_DETAIL_ADJACENCY_BIT;
+        switch (operationType)
         {
         case RenderOperation::OT_POINT_LIST:
             primType = GL_POINTS;
             break;
         case RenderOperation::OT_LINE_LIST:
-            primType = useAdjacency ? GL_LINES_ADJACENCY_EXT : GL_LINES;
+            primType = GL_LINES;
+            break;
+        case RenderOperation::OT_LINE_LIST_ADJ:
+            primType = GL_LINES_ADJACENCY_EXT;
             break;
         case RenderOperation::OT_LINE_STRIP:
-            primType = useAdjacency ? GL_LINE_STRIP_ADJACENCY_EXT : GL_LINE_STRIP;
+            primType = GL_LINE_STRIP;
+            break;
+        case RenderOperation::OT_LINE_STRIP_ADJ:
+            primType = GL_LINE_STRIP_ADJACENCY_EXT;
             break;
         default:
         case RenderOperation::OT_TRIANGLE_LIST:
-            primType = useAdjacency ? GL_TRIANGLES_ADJACENCY_EXT : GL_TRIANGLES;
+            primType = GL_TRIANGLES;
+            break;
+        case RenderOperation::OT_TRIANGLE_LIST_ADJ:
+            primType = GL_TRIANGLES_ADJACENCY_EXT;
             break;
         case RenderOperation::OT_TRIANGLE_STRIP:
-            primType = useAdjacency ? GL_TRIANGLE_STRIP_ADJACENCY_EXT : GL_TRIANGLE_STRIP;
+            primType = GL_TRIANGLE_STRIP;
+            break;
+        case RenderOperation::OT_TRIANGLE_STRIP_ADJ:
+            primType = GL_TRIANGLE_STRIP_ADJACENCY_EXT;
             break;
         case RenderOperation::OT_TRIANGLE_FAN:
             primType = GL_TRIANGLE_FAN;
@@ -3168,8 +3183,7 @@ namespace Ogre {
         if (target)
         {
             // Switch context if different from current one
-            GLContext *newContext = 0;
-            target->getCustomAttribute(GLRenderTexture::CustomAttributeString_GLCONTEXT, &newContext);
+            GLContext *newContext = dynamic_cast<GLRenderTarget*>(target)->getContext();
             if(newContext && mCurrentContext != newContext)
             {
                 _switchContext(newContext);

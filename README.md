@@ -1,5 +1,6 @@
 [![GitHub release](https://img.shields.io/github/release/ogrecave/ogre.svg)](https://github.com/OGRECave/ogre/releases/latest)
 [![Join the chat at https://gitter.im/OGRECave/ogre](https://badges.gitter.im/OGRECave/ogre.svg)](https://gitter.im/OGRECave/ogre?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Patreon](https://img.shields.io/badge/patreon-donate-blue.svg)](https://www.patreon.com/ogre1)
 
 ![](Docs/ogre-logo-wetfloor.gif)
 
@@ -35,7 +36,7 @@ A gold mine of tutorials, tips and code snippets which will help you get up to s
 We welcome all contributions to OGRE, be that new
 plugins, bugfixes, extensions, tutorials, documentation, example
 applications, artwork or pretty much anything else! If you would like
-to contribute to the development of OGRE, please create a pull request on [bitbucket](https://bitbucket.org/sinbad/ogre/pull-requests/) or [github](https://github.com/OGRECave/ogre/pulls).
+to contribute to the development of OGRE, please create a [pull request](https://github.com/OGRECave/ogre/pulls).
 
 ## Getting Support
 Please use our [community support forums](http://forums.ogre3d.org/) if you need help or

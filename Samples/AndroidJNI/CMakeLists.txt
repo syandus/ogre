@@ -24,13 +24,13 @@ if(ANDROID AND OGRE_BUILD_COMPONENT_JAVA)
     # Set this variable to false if no java code will be present (google android:hasCode for more info)
     SET(HAS_CODE "true")
     
-    SET(MAIN_ACTIVITY "org.Ogre.example.MainActivity")
+    SET(MAIN_ACTIVITY "org.ogre.example.MainActivity")
     SET(HEADERS "")
     SET(SAMPLE_LDLIBS "")
     
     # Copy and create resource files
 	# file(COPY "${JNI_PATH}/OgreActivityJNI.java" DESTINATION "${NDKOUT}/src/org/ogre/android")
-	file(COPY "${JNI_PATH}/MainActivity.java" DESTINATION "${NDKOUT}/src/org/Ogre/example")
+	file(COPY "${JNI_PATH}/MainActivity.java" DESTINATION "${NDKOUT}/src/org/ogre/example")
     
     copy_assets_to_android_proj()
         
@@ -40,7 +40,7 @@ if(ANDROID AND OGRE_BUILD_COMPONENT_JAVA)
     
     # copy the SDK
     add_custom_command(TARGET OgreJNIDummy PRE_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory "${OGRE_BINARY_DIR}/java" "${NDKOUT}")
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${PROJECT_BINARY_DIR}/java" "${NDKOUT}")
 
     # set(JNI_PATH "${NDKOUT}/jni")
     create_android_proj(OgreJNIDummy)
