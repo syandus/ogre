@@ -9,6 +9,7 @@
 #include "OgreTrays.h"
 #include "OgreAdvancedRenderControls.h"
 #include "OgreUnifiedHighLevelGpuProgram.h"
+#include "OgrePredefinedControllers.h"
 %}
 
 %include std_string.i
@@ -52,5 +53,7 @@ JNIEnv* OgreJNIGetEnv();
 %ignore OgreBites::TrayManager::getNumWidgets(TrayLocation);
 %ignore OgreBites::TrayManager::getWidgetIterator;
 %ignore OgreBites::SelectMenu::getItemsCount;
+#ifndef SWIGCSHARP
 %include "OgreTrays.h"
 %include "OgreAdvancedRenderControls.h"
+#endif

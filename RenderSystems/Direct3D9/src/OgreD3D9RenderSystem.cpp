@@ -927,7 +927,6 @@ namespace Ogre
         rsc->setNumTextureUnits(OGRE_MAX_TEXTURE_LAYERS);
         rsc->setNumVertexAttributes(14); // see D3DDECLUSAGE
         rsc->setCapability(RSC_ANISOTROPY);
-        rsc->setCapability(RSC_AUTOMIPMAP_COMPRESSED);
         rsc->setCapability(RSC_DOT3);
         rsc->setCapability(RSC_CUBEMAPPING);        
         rsc->setCapability(RSC_SCISSOR_TEST);       
@@ -1003,10 +1002,6 @@ namespace Ogre
             // Check for Anisotropy.
             if (rkCurCaps.MaxAnisotropy <= 1)
                 rsc->unsetCapability(RSC_ANISOTROPY);
-
-            // Check automatic mipmap generation.
-            if ((rkCurCaps.Caps2 & D3DCAPS2_CANAUTOGENMIPMAP) == 0)
-                rsc->unsetCapability(RSC_AUTOMIPMAP_COMPRESSED);
 
             // Check Dot product 3.
             if ((rkCurCaps.TextureOpCaps & D3DTEXOPCAPS_DOTPRODUCT3) == 0)
@@ -3712,7 +3707,7 @@ namespace Ogre
     }
     //---------------------------------------------------------------------
     void D3D9RenderSystem::bindGpuProgramParameters(GpuProgramType gptype, 
-        GpuProgramParametersSharedPtr params, uint16 variability)
+        const GpuProgramParametersPtr& params, uint16 variability)
     {
         // special case pass iteration
         if (variability == (uint16)GPV_PASS_ITERATION_NUMBER)

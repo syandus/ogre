@@ -795,8 +795,7 @@ namespace Ogre {
 
         if (enabled)
         {
-            GL3PlusTexturePtr tex = static_pointer_cast<GL3PlusTexture>(
-                texPtr ? texPtr : mTextureManager->_getWarningTexture());
+            GL3PlusTexturePtr tex = static_pointer_cast<GL3PlusTexture>(texPtr);
 
             // Note used
             tex->touch();
@@ -2156,7 +2155,7 @@ namespace Ogre {
         RenderSystem::unbindGpuProgram(gptype);
     }
 
-    void GL3PlusRenderSystem::bindGpuProgramParameters(GpuProgramType gptype, GpuProgramParametersSharedPtr params, uint16 mask)
+    void GL3PlusRenderSystem::bindGpuProgramParameters(GpuProgramType gptype, const GpuProgramParametersPtr& params, uint16 mask)
     {
         if (mask & (uint16)GPV_GLOBAL)
         {

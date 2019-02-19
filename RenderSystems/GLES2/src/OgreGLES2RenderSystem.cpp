@@ -158,6 +158,9 @@ namespace Ogre {
         : mStateCacheManager(0),
           mGpuProgramManager(0),
           mGLSLESProgramFactory(0),
+#if !OGRE_NO_GLES2_CG_SUPPORT
+          mGLSLESCgProgramFactory(0),
+#endif
           mHardwareBufferManager(0),
           mRTTManager(0),
           mCurTexMipCount(0)
@@ -824,8 +827,7 @@ namespace Ogre {
 
         if (enabled)
         {
-            GLES2TexturePtr tex = static_pointer_cast<GLES2Texture>(
-                texPtr ? texPtr : mTextureManager->_getWarningTexture());
+            GLES2TexturePtr tex = static_pointer_cast<GLES2Texture>(texPtr);
 
             mCurTexMipCount = 0;
 
@@ -1995,7 +1997,7 @@ namespace Ogre {
         RenderSystem::unbindGpuProgram(gptype);
     }
 
-    void GLES2RenderSystem::bindGpuProgramParameters(GpuProgramType gptype, GpuProgramParametersSharedPtr params, uint16 mask)
+    void GLES2RenderSystem::bindGpuProgramParameters(GpuProgramType gptype, const GpuProgramParametersPtr& params, uint16 mask)
     {
         // Just copy
         params->_copySharedParams();

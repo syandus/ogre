@@ -369,6 +369,11 @@ namespace Ogre
             mSrcHeight = mHeight;
         }
 
+        if(mUsage & TU_AUTOMIPMAP && D3D9RenderSystem::isDirectX9Ex())
+        {
+            mUsage |= TU_DYNAMIC;
+        }
+
         // load based on tex.type
         switch (getTextureType())
         {
@@ -1206,8 +1211,14 @@ namespace Ogre
         IDirect3DDevice9* d3d9Device = D3D9RenderSystem::getActiveD3D9Device();
         TextureResources* textureResources = getTextureResources(d3d9Device);
         if (textureResources == NULL || textureResources->pBaseTex == NULL)
-        {               
-            createTextureResources(d3d9Device);
+        {
+            // FIXME
+            // createTextureResources(d3d9Device);
+            // createTextureResources calls getBuffer again causing a stackoverflow
+            // prefer an empty texture to crashing for now
+            // to fix this we should probably use the notify mechanism instead of
+            // recrating the texture in here..
+            createInternalResourcesImpl(d3d9Device);
             textureResources = getTextureResources(d3d9Device);         
         }
         assert(textureResources != NULL);

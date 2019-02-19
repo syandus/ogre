@@ -42,13 +42,8 @@ namespace Ogre {
     }
 
     const char* const RGN_DEFAULT = "General";
-#if OGRE_RESOURCEMANAGER_STRICT
     const char* const RGN_INTERNAL = "OgreInternal";
     const char* const RGN_AUTODETECT = "OgreAutodetect";
-#else
-    const char* const RGN_INTERNAL = "Internal";
-    const char* const RGN_AUTODETECT = "Autodetect";
-#endif
 
     const String ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME = RGN_DEFAULT;
     const String ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME = RGN_INTERNAL;
@@ -1637,6 +1632,7 @@ namespace Ogre {
     std::pair<Archive*, ResourceGroupManager::ResourceGroup*>
     ResourceGroupManager::resourceExistsInAnyGroupImpl(const String& filename) const
     {
+        OgreAssert(!filename.empty(), "resourceName is empty string");
             OGRE_LOCK_AUTO_MUTEX;
 
             // Iterate over resource groups and find

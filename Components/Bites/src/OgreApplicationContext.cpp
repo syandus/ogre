@@ -95,16 +95,12 @@ void ApplicationContext::initApp()
 
 void ApplicationContext::closeApp()
 {
-#if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
-    if (mRoot)
-    {
-        mRoot->saveConfig();
-    }
-#endif
-
     shutdown();
     if (mRoot)
     {
+#if OGRE_PLATFORM != OGRE_PLATFORM_ANDROID
+        mRoot->saveConfig();
+#endif
         OGRE_DELETE mRoot;
         mRoot = NULL;
     }
@@ -802,6 +798,15 @@ void ApplicationContext::pollEvents()
             break;
         }
     }
+
+#   if OGRE_PLATFORM == OGRE_PLATFORM_APPLE
+    // hacky workaround for black window on OSX
+    for(const auto& win : mWindows)
+    {
+        SDL_SetWindowSize(win.native, win.render->getWidth(), win.render->getHeight());
+        win.render->windowMovedOrResized();
+    }
+#   endif
 #elif OGRE_PLATFORM == OGRE_PLATFORM_ANDROID
     for(WindowList::iterator it = mWindows.begin(); it != mWindows.end(); ++it)
     {
