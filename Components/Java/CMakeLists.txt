@@ -21,8 +21,7 @@ include_directories("${PROJECT_BINARY_DIR}/include" "${PROJECT_SOURCE_DIR}/OgreM
 include(${SWIG_USE_FILE})
 
 if(MSVC)
-	# TODO: Set MSVC flags
-	add_definitions(-DMS_NO_COREDLL)
+	add_definitions(/bigobj /wd4700)
 else()
 	add_definitions(-Wno-strict-aliasing -Wno-cast-qual -Wno-shadow -Wno-missing-declarations)
 endif()
@@ -69,6 +68,7 @@ if(OGRE_BUILD_COMPONENT_BITES)
 	list(APPEND SWIG_INPUT_MODULES ../Bites/include/OgreBites.i)
 endif()
 
+set(CMAKE_WARN_DEPRECATED OFF)
 swig_add_module(OgreJNI java ${SWIG_INPUT_MODULES})
 swig_link_libraries(OgreJNI OgreBites OgreOverlay OgreRTShaderSystem OgreMain ${JNI_LIBRARIES})
 
@@ -79,7 +79,10 @@ if(${Java_FOUND})
 	add_custom_command(TARGET ${SWIG_MODULE_OgreJNI_REAL_NAME} POST_BUILD
     	COMMAND "${Java_JAVAC_EXECUTABLE}" -d ${CLASS_OUTPUT_PATH} "${PROJECT_BINARY_DIR}/java/src/org/ogre/*.java"
 		COMMAND "${Java_JAR_EXECUTABLE}" cf ${JAR_NAME} -C ${CLASS_OUTPUT_PATH} .
-	)
+    )
+
+    install(FILES ${JAR_NAME} DESTINATION share/java/)
+    ogre_install_target(${SWIG_MODULE_OgreJNI_REAL_NAME} "" FALSE)
 endif()
 
 if(ANDROID)

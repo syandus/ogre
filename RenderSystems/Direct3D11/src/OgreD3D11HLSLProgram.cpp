@@ -167,66 +167,9 @@ namespace Ogre {
 
         defines.clear();
 
-        if (!stringBuffer.empty())
+        for(const auto& def : parseDefines(stringBuffer))
         {
-            // Split preprocessor defines and build up macro array
-            D3D_SHADER_MACRO macro;
-            String::size_type pos = stringBuffer.empty() ? String::npos : 0;
-            while (pos != String::npos)
-            {
-                macro.Name = &stringBuffer[pos];
-                macro.Definition = 0;
-
-                String::size_type start_pos=pos;
-
-                // Find delims
-                pos = stringBuffer.find_first_of(";,=", pos);
-
-                if(start_pos==pos)
-                {
-                    if(pos==stringBuffer.length())
-                    {
-                        break;
-                    }
-                    pos++;
-                    continue;
-                }
-
-                if (pos != String::npos)
-                {
-                    // Check definition part
-                    if (stringBuffer[pos] == '=')
-                    {
-                        // Setup null character for macro name
-                        stringBuffer[pos++] = '\0';
-                        macro.Definition = &stringBuffer[pos];
-                        pos = stringBuffer.find_first_of(";,", pos);
-                    }
-                    else
-                    {
-                        // No definition part, define as "1"
-                        macro.Definition = "1";
-                    }
-
-                    if (pos != String::npos)
-                    {
-                        // Setup null character for macro name or definition
-                        stringBuffer[pos++] = '\0';
-                    }
-                }
-                else
-                {
-                    macro.Definition = "1";
-                }
-                if(strlen(macro.Name)>0)
-                {
-                    defines.push_back(macro);
-                }
-                else
-                {
-                    break;
-                }
-            }
+            defines.push_back({def.first, def.second});
         }
 
         //Add D3D11 define to all program, compiled with D3D11 RenderSystem
@@ -1943,7 +1886,7 @@ namespace Ogre {
             
             if (it->mUniformBuffer)
             {
-                void* pMappedData = it->mUniformBuffer->lock(HardwareBuffer::HBL_DISCARD);
+                HardwareBufferLockGuard uniformLock(it->mUniformBuffer, HardwareBuffer::HBL_DISCARD);
 
                 // Only iterate through parsed variables (getting size of list)
                 void* src = 0;
@@ -1973,11 +1916,9 @@ namespace Ogre {
                         
 
 
-                        memcpy( &(((char *)(pMappedData))[iter->startOffset]), src , iter->size);
+                        memcpy( &(((char *)(uniformLock.pData))[iter->startOffset]), src , iter->size);
                     }
                 }
-
-                it->mUniformBuffer->unlock();
 
                 return static_cast<D3D11HardwareUniformBuffer*>(it->mUniformBuffer.get())->getD3DConstantBuffer();
             }
@@ -1997,7 +1938,7 @@ namespace Ogre {
         {
             if (it->mUniformBuffer)
             {
-                void* pMappedData = it->mUniformBuffer->lock(HardwareBuffer::HBL_DISCARD);
+                HardwareBufferLockGuard uniformLock(it->mUniformBuffer, HardwareBuffer::HBL_DISCARD);
 
                 // Only iterate through parsed variables (getting size of list)
                 void* src = 0;
@@ -2019,11 +1960,9 @@ namespace Ogre {
                             src = (void *)&(*(params->getIntConstantList().begin() + def.physicalIndex));
                         }
 
-                        memcpy( &(((char *)(pMappedData))[iter->startOffset]), src , iter->size);
+                        memcpy( &(((char *)(uniformLock.pData))[iter->startOffset]), src , iter->size);
                     }
                 }
-
-                it->mUniformBuffer->unlock();
 
                 // Add buffer to list
                 buffers[numBuffers] = static_cast<D3D11HardwareUniformBuffer*>(it->mUniformBuffer.get())->getD3DConstantBuffer();

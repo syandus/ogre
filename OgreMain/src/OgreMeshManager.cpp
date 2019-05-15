@@ -69,9 +69,11 @@ namespace Ogre
     void MeshManager::_initialise(void)
     {
         // Create prefab objects
-        createPrefabPlane();
-        createPrefabCube();
-        createPrefabSphere();
+        createManual("Ogre/Debug/AxesMesh", RGN_INTERNAL, &mPrefabLoader);
+        createManual("Prefab_Sphere", RGN_INTERNAL, &mPrefabLoader);
+        createManual("Prefab_Cube", RGN_INTERNAL, &mPrefabLoader);
+        // Planes can never be manifold
+        createManual("Prefab_Plane", RGN_INTERNAL, &mPrefabLoader)->setAutoBuildEdgeLists(false);
     }
     //-----------------------------------------------------------------------
     MeshManager::ResourceCreateOrRetrieveResult MeshManager::createOrRetrieve(
@@ -140,7 +142,7 @@ namespace Ogre
         bool vertexShadowBuffer, bool indexShadowBuffer)
     {
         // Create manual mesh which calls back self to load
-        MeshPtr pMesh = createManual(name, groupName, this);
+        MeshPtr pMesh = createManual(name, groupName, &mPrefabLoader);
         // Planes can never be manifold
         pMesh->setAutoBuildEdgeLists(false);
         // store parameters
@@ -160,7 +162,7 @@ namespace Ogre
         params.indexBufferUsage = indexBufferUsage;
         params.vertexShadowBuffer = vertexShadowBuffer;
         params.indexShadowBuffer = indexShadowBuffer;
-        mMeshBuildParams[pMesh.get()] = params;
+        mPrefabLoader.mMeshBuildParams[pMesh.get()] = params;
 
         // to preserve previous behaviour, load immediately
         pMesh->load();
@@ -176,7 +178,7 @@ namespace Ogre
             bool vertexShadowBuffer, bool indexShadowBuffer)
     {
         // Create manual mesh which calls back self to load
-        MeshPtr pMesh = createManual(name, groupName, this);
+        MeshPtr pMesh = createManual(name, groupName, &mPrefabLoader);
         // Planes can never be manifold
         pMesh->setAutoBuildEdgeLists(false);
         // store parameters
@@ -197,7 +199,7 @@ namespace Ogre
         params.indexBufferUsage = indexBufferUsage;
         params.vertexShadowBuffer = vertexShadowBuffer;
         params.indexShadowBuffer = indexShadowBuffer;
-        mMeshBuildParams[pMesh.get()] = params;
+        mPrefabLoader.mMeshBuildParams[pMesh.get()] = params;
 
         // to preserve previous behaviour, load immediately
         pMesh->load();
@@ -219,7 +221,7 @@ namespace Ogre
         int ySegmentsToKeep)
     {
         // Create manual mesh which calls back self to load
-        MeshPtr pMesh = createManual(name, groupName, this);
+        MeshPtr pMesh = createManual(name, groupName, &mPrefabLoader);
         // Planes can never be manifold
         pMesh->setAutoBuildEdgeLists(false);
         // store parameters
@@ -242,7 +244,7 @@ namespace Ogre
         params.vertexShadowBuffer = vertexShadowBuffer;
         params.indexShadowBuffer = indexShadowBuffer;
         params.ySegmentsToKeep = ySegmentsToKeep;
-        mMeshBuildParams[pMesh.get()] = params;
+        mPrefabLoader.mMeshBuildParams[pMesh.get()] = params;
 
         // to preserve previous behaviour, load immediately
         pMesh->load();
@@ -251,7 +253,7 @@ namespace Ogre
     }
 
     //-----------------------------------------------------------------------
-    void MeshManager::tesselate2DMesh(SubMesh* sm, unsigned short meshWidth, unsigned short meshHeight, 
+    void MeshManager::PrefabLoader::tesselate2DMesh(SubMesh* sm, unsigned short meshWidth, unsigned short meshHeight,
         bool doubleSided, HardwareBuffer::Usage indexBufferUsage, bool indexShadowBuffer)
     {
         // The mesh is built, just make a list of indexes to spit out the triangles
@@ -281,8 +283,8 @@ namespace Ogre
         //bool firstTri = true;
         HardwareIndexBufferSharedPtr ibuf = sm->indexData->indexBuffer;
         // Lock the whole buffer
-        unsigned short* pIndexes = static_cast<unsigned short*>(
-            ibuf->lock(HardwareBuffer::HBL_DISCARD) );
+        HardwareBufferLockGuard ibufLock(ibuf, HardwareBuffer::HBL_DISCARD);
+        unsigned short* pIndexes = static_cast<unsigned short*>(ibufLock.pData);
 
         while (iterations--)
         {
@@ -330,47 +332,6 @@ namespace Ogre
             vInc = -vInc;
 
         }
-        // Unlock
-        ibuf->unlock();
-
-    }
-
-    //-----------------------------------------------------------------------
-    void MeshManager::createPrefabPlane(void)
-    {
-        MeshPtr msh = create(
-            "Prefab_Plane", 
-            ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME, 
-            true, // manually loaded
-            this);
-        // Planes can never be manifold
-        msh->setAutoBuildEdgeLists(false);
-        // to preserve previous behaviour, load immediately
-        msh->load();
-    }
-    //-----------------------------------------------------------------------
-    void MeshManager::createPrefabCube(void)
-    {
-        MeshPtr msh = create(
-            "Prefab_Cube", 
-            ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME, 
-            true, // manually loaded
-            this);
-
-        // to preserve previous behaviour, load immediately
-        msh->load();
-    }
-    //-------------------------------------------------------------------------
-    void MeshManager::createPrefabSphere(void)
-    {
-        MeshPtr msh = create(
-            "Prefab_Sphere", 
-            ResourceGroupManager::INTERNAL_RESOURCE_GROUP_NAME, 
-            true, // manually loaded
-            this);
-
-        // to preserve previous behaviour, load immediately
-        msh->load();
     }
     //-------------------------------------------------------------------------
     void MeshManager::setListener(Ogre::MeshSerializerListener *listener)
@@ -383,7 +344,7 @@ namespace Ogre
         return mListener;
     }
     //-----------------------------------------------------------------------
-    void MeshManager::loadResource(Resource* res)
+    void MeshManager::PrefabLoader::loadResource(Resource* res)
     {
         Mesh* msh = static_cast<Mesh*>(res);
 
@@ -423,7 +384,7 @@ namespace Ogre
     }
 
     //-----------------------------------------------------------------------
-    void MeshManager::loadManualPlane(Mesh* pMesh, MeshBuildParams& params)
+    void MeshManager::PrefabLoader::loadManualPlane(Mesh* pMesh, MeshBuildParams& params)
     {
         if ((params.xsegments + 1) * (params.ysegments + 1) > 65536)
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
@@ -497,8 +458,8 @@ namespace Ogre
 
         // Generate vertex data
         // Lock the whole buffer
-        float* pReal = static_cast<float*>(
-            vbuf->lock(HardwareBuffer::HBL_DISCARD) );
+        HardwareBufferLockGuard vbufLock(vbuf, HardwareBuffer::HBL_DISCARD);
+        float* pReal = static_cast<float*>(vbufLock.pData);
         Real xSpace = params.width / params.xsegments;
         Real ySpace = params.height / params.ysegments;
         Real halfWidth = params.width / 2;
@@ -563,7 +524,7 @@ namespace Ogre
         } // y
 
         // Unlock
-        vbuf->unlock();
+        vbufLock.unlock();
         // Generate face list
         pSub->useSharedVertices = true;
         tesselate2DMesh(pSub, params.xsegments + 1, params.ysegments + 1, false, 
@@ -573,7 +534,7 @@ namespace Ogre
         pMesh->_setBoundingSphereRadius(Math::Sqrt(maxSquaredLength));
     }
     //-----------------------------------------------------------------------
-    void MeshManager::loadManualCurvedPlane(Mesh* pMesh, MeshBuildParams& params)
+    void MeshManager::PrefabLoader::loadManualCurvedPlane(Mesh* pMesh, MeshBuildParams& params)
     {
         if ((params.xsegments + 1) * (params.ysegments + 1) > 65536)
             OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, 
@@ -641,8 +602,8 @@ namespace Ogre
         xform = xlate * rot;
 
         // Generate vertex data
-        float* pFloat = static_cast<float*>(
-            vbuf->lock(HardwareBuffer::HBL_DISCARD)); 
+        HardwareBufferLockGuard vbufLock(vbuf, HardwareBuffer::HBL_DISCARD);
+        float* pFloat = static_cast<float*>(vbufLock.pData);
         Real xSpace = params.width / params.xsegments;
         Real ySpace = params.height / params.ysegments;
         Real halfWidth = params.width / 2;
@@ -717,7 +678,7 @@ namespace Ogre
 
             } // x
         } // y
-        vbuf->unlock();
+        vbufLock.unlock();
 
         // Generate face list
         tesselate2DMesh(pSub, params.xsegments + 1, params.ysegments + 1, 
@@ -728,7 +689,7 @@ namespace Ogre
 
     }
     //-----------------------------------------------------------------------
-    void MeshManager::loadManualCurvedIllusionPlane(Mesh* pMesh, MeshBuildParams& params)
+    void MeshManager::PrefabLoader::loadManualCurvedIllusionPlane(Mesh* pMesh, MeshBuildParams& params)
     {
         if (params.ySegmentsToKeep == -1) params.ySegmentsToKeep = params.ysegments;
 
@@ -823,8 +784,8 @@ namespace Ogre
         camPos = sphereRadius - CAM_DIST;
 
         // Lock the whole buffer
-        float* pFloat = static_cast<float*>(
-            vbuf->lock(HardwareBuffer::HBL_DISCARD) );
+        HardwareBufferLockGuard vbufLock(vbuf, HardwareBuffer::HBL_DISCARD);
+        float* pFloat = static_cast<float*>(vbufLock.pData);
         Real xSpace = params.width / params.xsegments;
         Real ySpace = params.height / params.ysegments;
         Real halfWidth = params.width / 2;
@@ -901,7 +862,7 @@ namespace Ogre
         } // y
 
         // Unlock
-        vbuf->unlock();
+        vbufLock.unlock();
         // Generate face list
         pSub->useSharedVertices = true;
         tesselate2DMesh(pSub, params.xsegments + 1, params.ySegmentsToKeep + 1, false, 
@@ -911,7 +872,7 @@ namespace Ogre
         pMesh->_setBoundingSphereRadius(Math::Sqrt(maxSquaredLength));
     }
     //-----------------------------------------------------------------------
-    PatchMeshPtr MeshManager::createBezierPatch(const String& name, const String& groupName, 
+    PatchMeshPtr MeshManager::createBezierPatch(const String& name, const String& groupName,
             void* controlPointBuffer, VertexDeclaration *declaration, 
             size_t width, size_t height,
             size_t uMaxSubdivisionLevel, size_t vMaxSubdivisionLevel,

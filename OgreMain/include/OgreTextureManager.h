@@ -126,7 +126,7 @@ namespace Ogre {
         ResourceCreateOrRetrieveResult createOrRetrieve(
             const String &name, const String& group, bool isManual,
             ManualResourceLoader* loader, const NameValuePairList* createParams,
-            TextureType texType = TEX_TYPE_2D, int numMipmaps = MIP_DEFAULT, 
+            TextureType texType, int numMipmaps = MIP_DEFAULT,
             Real gamma = 1.0f, bool isAlpha = false,
             PixelFormat desiredFormat = PF_UNKNOWN, bool hwGammaCorrection = false);
 
@@ -436,6 +436,40 @@ namespace Ogre {
         TexturePtr mWarningTexture;
         SamplerPtr mDefaultSampler;
         std::map<String, SamplerPtr> mNamedSamplers;
+    };
+
+    /// Specialisation of TextureManager for offline processing. Cannot be used with an active RenderSystem.
+    class _OgreExport DefaultTextureManager : public TextureManager
+    {
+        /// noop implementation
+        class NullTexture : public Texture
+        {
+        public:
+            NullTexture(ResourceManager* creator, const String& name, ResourceHandle handle,
+                        const String& group)
+                : Texture(creator, name, handle, group)
+            {
+            }
+            const HardwarePixelBufferSharedPtr& getBuffer(size_t, size_t) override
+            {
+                static HardwarePixelBufferSharedPtr nullBuffer;
+                return nullBuffer;
+            }
+
+        protected:
+            void createInternalResourcesImpl() override {}
+            void freeInternalResourcesImpl() override {}
+            void loadImpl() override {}
+        };
+    public:
+        bool isHardwareFilteringSupported(TextureType, PixelFormat, int, bool) override { return false; }
+        PixelFormat getNativeFormat(TextureType, PixelFormat, int) override { return PF_UNKNOWN; }
+
+        Resource* createImpl(const String& name, ResourceHandle handle, const String& group, bool,
+                             ManualResourceLoader*, const NameValuePairList*) override
+        {
+            return new NullTexture(this, name, handle, group);
+        }
     };
     /** @} */
     /** @} */

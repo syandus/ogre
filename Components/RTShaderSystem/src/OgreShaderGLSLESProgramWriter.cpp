@@ -36,7 +36,8 @@ namespace Ogre {
         GLSLESProgramWriter::GLSLESProgramWriter()
         {
             mIsGLSLES = true;
-            mGLSLVersion = Root::getSingleton().getRenderSystem()->getNativeShadingLanguageVersion();
+            auto* rs = Root::getSingleton().getRenderSystem();
+            mGLSLVersion = rs ? rs->getNativeShadingLanguageVersion() : 100;
             initializeStringMaps();
             mFunctionCacheMap.clear();
         }
@@ -281,7 +282,7 @@ namespace Ogre {
             for ( ; itAtom != itAtomEnd; ++itAtom)
             {   
                 // Skip non function invocation atoms.
-                if ((*itAtom)->getFunctionAtomType() != FunctionInvocation::Type)
+                if (!dynamic_cast<const FunctionInvocation*>(*itAtom))
                     continue;
 
                 FunctionInvocation pFuncInvoc = *(static_cast<FunctionInvocation *>(*itAtom));
