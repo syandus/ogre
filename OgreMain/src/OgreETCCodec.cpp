@@ -201,7 +201,7 @@ namespace Ogre {
     {
         PKMHeader header;
 
-        // Read the ETC header
+        // Read the PKM header
         stream->read(&header, sizeof(PKMHeader));
 
         if (PKM_MAGIC != FOURCC(header.name[0], header.name[1], header.name[2], header.name[3]) ) // "PKM 10"
@@ -250,11 +250,11 @@ namespace Ogre {
         else
             imgData->format = PF_ETC1_RGB8;
 
-        // ETC has no support for mipmaps - malideveloper.com has a example
+        // PKM has no support for mipmaps - malideveloper.com has a example
         // where the load mipmap levels from different external files
         imgData->num_mipmaps = 0;
 
-        // ETC is a compressed format
+        // PKM texture container only allows compressed formats
         imgData->flags |= IF_COMPRESSED;
 
         // Calculate total size from number of mipmaps, faces and size
