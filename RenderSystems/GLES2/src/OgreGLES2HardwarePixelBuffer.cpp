@@ -257,7 +257,8 @@ namespace Ogre {
                                               " Target: " + StringConverter::toString(mTarget) +
                                               " Format: " + PixelUtil::getFormatName(data.format) +
                                               " Origin format: " + StringConverter::toString(GLES2PixelUtil::getGLOriginFormat(data.format), 0, ' ', std::ios::hex) +
-                                              " Data type: " + StringConverter::toString(GLES2PixelUtil::getGLOriginDataType(data.format), 0, ' ', std::ios::hex));
+                                              " Data type: " + StringConverter::toString(GLES2PixelUtil::getGLOriginDataType(data.format), 0, ' ', std::ios::hex) +
+                                              " Internal format: " + StringConverter::toString(GLES2PixelUtil::getGLInternalFormat(mFormat), 0, ' ', std::ios::hex));
 #endif
 #endif
 
@@ -274,6 +275,20 @@ namespace Ogre {
             switch(mTarget) {
                 case GL_TEXTURE_2D:
                 case GL_TEXTURE_CUBE_MAP:
+#if OGRE_DEBUG_MODE
+                        LogManager::getSingleton().logMessage(
+                            "glCompressedTexSubImage2D():" + String("") +
+                            " mFaceTarget: " + StringConverter::toString(mFaceTarget) +
+                            " mLevel: " + StringConverter::toString(mLevel) +
+                            " dest.left: " + StringConverter::toString(dest.left) +
+                            " dest.top: " + StringConverter::toString(dest.top) +
+                            " dest.getWidth: " + StringConverter::toString(dest.getWidth()) +
+                            " dest.getHeight: " + StringConverter::toString(dest.getHeight()) +
+                            " format: " + StringConverter::toString(format, 0, ' ', std::ios::hex) +
+                            " data.getConsecutiveSize(): " + StringConverter::toString(data.getConsecutiveSize()) +
+                            " pdata: : " + StringConverter::toString((uint32_t)pdata, 0, ' ', std::ios::hex)
+                        );
+#endif
                         OGRE_CHECK_GL_ERROR(glCompressedTexSubImage2D(mFaceTarget, mLevel,
                                                   dest.left, dest.top,
                                                   dest.getWidth(), dest.getHeight(),
