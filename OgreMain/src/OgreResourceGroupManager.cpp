@@ -95,8 +95,7 @@ namespace Ogre {
         grp->worldGeometrySceneManager = 0;
 
         OGRE_LOCK_AUTO_MUTEX;
-        mResourceGroupMap.insert(
-            ResourceGroupMap::value_type(name, grp));
+        mResourceGroupMap.emplace(name, grp);
     }
     //-----------------------------------------------------------------------
     void ResourceGroupManager::initialiseResourceGroup(const String& name)
@@ -909,8 +908,7 @@ namespace Ogre {
     {
             OGRE_LOCK_AUTO_MUTEX;
 
-        mScriptLoaderOrderMap.insert(
-            ScriptLoaderOrderMap::value_type(su->getLoadingOrder(), su));
+        mScriptLoaderOrderMap.emplace(su->getLoadingOrder(), su);
     }
     //-----------------------------------------------------------------------
     void ResourceGroupManager::_unregisterScriptLoader(ScriptLoader* su)
@@ -1828,14 +1826,14 @@ namespace Ogre {
     void ResourceGroupManager::ResourceGroup::addToIndex(const String& filename, Archive* arch)
     {
         // internal, assumes mutex lock has already been obtained
-        this->resourceIndexCaseSensitive[filename] = arch;
+        this->resourceIndexCaseSensitive.emplace(filename, arch);
 
 #if !OGRE_RESOURCEMANAGER_STRICT
         if (!arch->isCaseSensitive())
         {
             String lcase = filename;
             StringUtil::toLowerCase(lcase);
-            this->resourceIndexCaseInsensitive[lcase] = arch;
+            this->resourceIndexCaseInsensitive.emplace(lcase, arch);
         }
 #endif
     }

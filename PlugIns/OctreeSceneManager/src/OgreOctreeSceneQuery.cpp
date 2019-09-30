@@ -64,17 +64,12 @@ void OctreeIntersectionSceneQuery::execute(IntersectionSceneQueryListener* liste
     MovableSet set;
 
     // Iterate over all movable types
-    Root::MovableObjectFactoryIterator factIt = 
-        Root::getSingleton().getMovableObjectFactoryIterator();
-    while(factIt.hasMoreElements())
+    for(const auto& factIt : Root::getSingleton().getMovableObjectFactories())
     {
-        SceneManager::MovableObjectIterator it = 
-            mParentSceneMgr->getMovableObjectIterator(
-            factIt.getNext()->getType());
-        while( it.hasMoreElements() )
+        for (const auto& it : mParentSceneMgr->getMovableObjects(factIt.first))
         {
 
-            MovableObject * e = it.getNext();
+            MovableObject * e = it.second;
 
             std::list< SceneNode * > list;
             //find the nodes that intersect the AAB

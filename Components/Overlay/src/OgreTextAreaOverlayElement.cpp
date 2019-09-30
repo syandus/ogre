@@ -91,8 +91,7 @@ namespace Ogre {
             VertexDeclaration* decl = mRenderOp.vertexData->vertexDeclaration;
             size_t offset = 0;
             // Positions
-            decl->addElement(POS_TEX_BINDING, offset, VET_FLOAT3, VES_POSITION);
-            offset += VertexElement::getTypeSize(VET_FLOAT3);
+            offset += decl->addElement(POS_TEX_BINDING, offset, VET_FLOAT3, VES_POSITION).getSize();
             // Texcoords
             decl->addElement(POS_TEX_BINDING, offset, VET_FLOAT2, VES_TEXTURE_COORDINATES, 0);
             // Colours - store these in a separate buffer because they change less often
@@ -378,7 +377,8 @@ namespace Ogre {
         if (!mFont)
             OGRE_EXCEPT( Exception::ERR_ITEM_NOT_FOUND, "Could not find font " + font,
                 "TextAreaOverlayElement::setFontName" );
-        
+        mMaterial.reset();
+
         mGeomPositionsOutOfDate = true;
         mGeomUVsOutOfDate = true;
     }

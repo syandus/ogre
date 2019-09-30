@@ -38,8 +38,8 @@ elseif("$ENV{TRAVIS_OS_NAME}" STREQUAL "osx")
 endif()
 
 if(DEFINED ENV{APPVEYOR})
+    set(CMAKE_BUILD_TYPE Release)
     if("$ENV{APPVEYOR_BUILD_WORKER_IMAGE}" STREQUAL "Visual Studio 2017")
-        set(CMAKE_BUILD_TYPE Release)
         set(GENERATOR -G "Visual Studio 15")
     else()
         set(GENERATOR -G "Visual Studio 12")
@@ -66,7 +66,8 @@ if(DEFINED ENV{ANDROID})
         -DANDROID_PLATFORM=android-16
         -DANDROID_NDK=${CMAKE_CURRENT_SOURCE_DIR}/android-ndk-r17
         -DCMAKE_TOOLCHAIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/android-ndk-r17/build/cmake/android.toolchain.cmake
-        "-DANDROID_ABI=armeabi-v7a with NEON")
+        -DANDROID_ARM_NEON=TRUE
+        -DANDROID_ABI=arm64-v8a)
 
     set(RENDERSYSTEMS
         -DOGRE_BUILD_RENDERSYSTEM_GLES2=TRUE

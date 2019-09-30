@@ -670,7 +670,7 @@ namespace OgreBites
                 }
             }
 
-            if (mTrayMgr->mousePressed(evt)) return true;
+            if ((!mCurrentSample || mSamplePaused) && mTrayMgr->mousePressed(evt)) return true;
 
             try
             {
@@ -702,7 +702,7 @@ namespace OgreBites
             //transformInputState(state);
             //OIS::PointerEvent orientedEvt((OIS::Object*)evt.device, state);
 
-            if (mTrayMgr->mouseReleased(evt)) return true;
+            if ((!mCurrentSample || mSamplePaused) && mTrayMgr->mouseReleased(evt)) return true;
 
             try
             {
@@ -734,7 +734,7 @@ namespace OgreBites
             //transformInputState(state);
             //OIS::PointerEvent orientedEvt((OIS::Object*)evt.device, state);
 
-            if (mTrayMgr->mouseMoved(evt)) return true;
+            if ((!mCurrentSample || mSamplePaused) && mTrayMgr->mouseMoved(evt)) return true;
 
             try
             {
@@ -823,6 +823,7 @@ namespace OgreBites
             mWindow = getRenderWindow();
             addInputListener(this);
             if(mGrabInput) setWindowGrab();
+            else mTrayMgr->hideCursor();
 #ifdef OGRE_STATIC_LIB
             mPluginNameMap["DefaultSamples"] = new DefaultSamplesPlugin();
 #   ifdef SAMPLES_INCLUDE_PLAYPEN

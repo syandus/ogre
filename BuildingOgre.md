@@ -53,7 +53,8 @@ then build it according to its documentation.
 ### Recommended dependencies:
 
 * zlib: http://www.zlib.net
-* zziplib: https://github.com/paroj/ZZIPlib
+* zziplib: https://github.com/gdraheim/zziplib
+* pugixml: https://github.com/zeux/pugixml
 * SDL: https://www.libsdl.org/
 
 ### Optional dependencies:
@@ -62,6 +63,7 @@ then build it according to its documentation.
 * FreeImage: http://freeimage.sourceforge.net
 * Doxygen: http://doxygen.org
 * Cg: http://developer.nvidia.com/object/cg_toolkit.html
+* Remotery: https://github.com/Celtoys/Remotery
 * Boost: http://www.boost.org (+)
 * POCO: http://pocoproject.org (+)
 * TBB: http://www.threadingbuildingblocks.org (+)
@@ -83,9 +85,17 @@ Check the [CMake documentation](https://cmake.org/cmake/help/latest/manual/cmake
 
 Click *Finish*. CMake will now gather some information about your
 build environment and try to locate the dependencies. It will then show
-a list of build options. You can adjust the settings to your liking; for
-example unchecking any of the `OGRE_BUILD_XXX` options will disable that
-particular component from being built. Once you are satisfied, hit
+a list of build options. You can adjust the settings to your liking;
+- unchecking any of the `OGRE_BUILD_XXX` options will disable that
+particular component/ plugin from being built
+- `OGRE_CONFIG_XXX` on the other hand allows you to configure Core features e.g. threading or zip file support.
+- `OGRE_CONFIG_NODE_INHERIT_TRANSFORM` enables shearing and non-uniform scaling for Ogre::SceneNode. This requires slightly more storage and computation time.
+- `OGRE_PROFILING` add profiling instrumentation the ogre library.
+- `OGRE_PROFILING_REMOTERY_PATH` if set, Remotery is used for profiling instead of the Ogre internal profiler.
+- `OGRE_ASSERT_MODE` allows you to to disable all runtime assertion exceptions or turn them into calls to `std::abort`.
+- `OGRE_RESOURCEMANGER_STRICT` allows you to turn on resource lookup related quirks for pre ogre 1.10 compatibility.
+
+Once you are satisfied, hit
 *Configure* again and then click on *Generate*. CMake will then create
 the build system for you.
 
@@ -128,6 +138,35 @@ For Makefile based generators, type:
 On Linux Ogre will be installed to `/usr/local` by default. On Windows this will create the folder `sdk` inside your build directory and copy all the
 required libraries there. You can change the install location by changing the variable `CMAKE_INSTALL_PREFIX` in CMake.
 
+Building on Ubuntu for Android
+--------------------------------------------
+
+To build Ogre for Android, you need to specify the android cross toolchain to cmake as
+
+    cmake -DCMAKE_TOOLCHAIN_FILE=path/to/android-ndk/build/cmake/android.toolchain.cmake -DANDROID_NDK=path/to/android-ndk .
+
+this will build the core Ogre libraries. Additionally it will create gradle projects `OgreJNI` for using Java bindings and `SampleBrowserNDK` for the C++ only Sample Browser.
+
+You can now import these projects in Android Studio or manually trigger the APK creation by changing into the project folders and running
+
+    gradle assembleRelease
+
+Building for WebAssembly (using Emscripten)
+-----------------------------------------
+Install the Emscripten SDK (see full documentation on [www.emscripten.org](https://emscripten.org/docs/getting_started/downloads.html)), and make sure
+that the environment variables are correctly set (eg. run source <emsdk_path>/emsdk_env.sh before attempting to build)
+
+Run cmake in cross compile mode using emscripten as following:
+
+    mkdir build-wasm
+    emcmake cmake .. -DCMAKE_BUILD_TYPE=Release
+    emmake make
+
+NB: to simplify the process, 'emcmake' and 'emmake' wrappers are used. These tools are provided by Emscripten to correctly setup the cross compilation environment
+
+This will not build the full SampleBrowser, but just a minimal Sample. The resulting `EmscriptenSample.html` will be placed in `${CMAKE_BINARY_DIR}/bin/`.
+
+To prevent any cross-origin issues, start a local webserver as `python3 -m http.server 8000` and visit http://localhost:8000.
 
 Building on Mac OS X for iOS OS
 -------------------------------
@@ -205,33 +244,3 @@ file .vmx and add the parameter: hypervisor.cpuid.v0 = "FALSE"
 All versions of Visual Studio 2012 have a window refresh issue when running
 in VMware and the window is maximized, the solution is just to change the
 size of the Visual Studio window to be less the the screen width and height.
-
-Building on Ubuntu for Android
---------------------------------------------
-
-To build Ogre for Android, you need to specify the ios cross toolchain to cmake as
-
-    cmake -DCMAKE_TOOLCHAIN_FILE=CMake/toolchain/android.toolchain.cmake -DANDROID_NDK=path/to/android-ndk .
-
-this will build the core Ogre libraries. Also if your `PATH` contains the `android` executable it will generate the SampleBrowser APK.
-
-To manually generate the APK and install it on your device, run
-
-    ant debug install
-
-Building for WebAssembly (using Emscripten)
------------------------------------------
-Install the Emscripten SDK (see full documentation on [www.emscripten.org](https://emscripten.org/docs/getting_started/downloads.html)), and make sure
-that the environment variables are correctly set (eg. run source <emsdk_path>/emsdk_env.sh before attempting to build)
-
-Run cmake in cross compile mode using emscripten as following:
-
-    mkdir build-wasm
-    emcmake cmake .. -DCMAKE_BUILD_TYPE=Release
-    emmake make
-
-NB: to simplify the process, 'emcmake' and 'emmake' wrappers are used. These tools are provided by Emscripten to correctly setup the cross compilation environment
-
-This will not build the full SampleBrowser, but just a minimal Sample. The resulting `EmscriptenSample.html` will be placed in `${CMAKE_BINARY_DIR}/bin/`.
-
-To prevent any cross-origin issues, start a local webserver as `python3 -m http.server 8000` and visit `localhost:8000`.

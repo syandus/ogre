@@ -352,44 +352,44 @@ namespace Ogre {
     void X11EGLWindow::windowMovedOrResized()
     {
         if (mClosed || !mWindow)
-        {
             return;
-        }
 
         NativeDisplayType mNativeDisplay = mGLSupport->getNativeDisplay();
         XWindowAttributes windowAttrib;
 
+        Window parent, root, *children;
+        uint nChildren;
+
+        XQueryTree((Display*)mNativeDisplay, (Window)mWindow, &root, &parent, &children, &nChildren);
+
+        if (children)
+            XFree(children);
+
+        XGetWindowAttributes((Display*)mNativeDisplay, parent, &windowAttrib);
+
         if (mIsTopLevel && !mIsFullScreen)
         {
-            Window parent, root, *children;
-            uint nChildren;
-
-            XQueryTree((Display*)mNativeDisplay, (Window)mWindow, &root, &parent, &children, &nChildren);
-
-            if (children)
-            {
-                XFree(children);
-            }
-
-            XGetWindowAttributes((Display*)mNativeDisplay, parent, &windowAttrib);
+            // offset from window decorations
             mLeft = windowAttrib.x;
-            mTop = windowAttrib.y;
+            mTop  = windowAttrib.y;
+            // w/ h of the actual renderwindow
+            XGetWindowAttributes((Display*)mNativeDisplay, (Window)mWindow, &windowAttrib);
         }
-
-        XGetWindowAttributes((Display*)mNativeDisplay, (Window)mWindow, &windowAttrib);
 
         if (mWidth == uint32(windowAttrib.width) && mHeight == uint32(windowAttrib.height))
-        {
             return;
-        }
 
         mWidth = windowAttrib.width;
         mHeight = windowAttrib.height;
 
-        for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
+        if(!mIsTopLevel)
         {
-            (*it).second->_updateDimensions();
+            XResizeWindow((Display*)mNativeDisplay, mWindow, mWidth, mHeight);
+            XFlush((Display*)mNativeDisplay);
         }
+
+        for (ViewportList::iterator it = mViewportList.begin(); it != mViewportList.end(); ++it)
+            (*it).second->_updateDimensions();
     }
     void X11EGLWindow::switchFullScreen(bool fullscreen)
     { 
@@ -423,7 +423,6 @@ namespace Ogre {
     {
         String title = name;
         int samples = 0;
-        int gamma;
         short frequency = 0;
         bool vsync = false;
         ::EGLContext eglContext = 0;
@@ -477,7 +476,7 @@ namespace Ogre {
 
             if ((opt = miscParams->find("gamma")) != end)
             {
-                gamma = StringConverter::parseBool(opt->second);
+                mHwGamma = StringConverter::parseBool(opt->second);
             }
 
             if ((opt = miscParams->find("left")) != end)
@@ -550,7 +549,6 @@ namespace Ogre {
             };
 
             mEglConfig = mGLSupport->selectGLConfig(minAttribs, maxAttribs);
-            mHwGamma = false;
         }
 
         if (!mIsTopLevel)
@@ -576,13 +574,16 @@ namespace Ogre {
         setVSyncInterval(vsyncInterval);
         setVSyncEnabled(vsync);
 
-        int Rsz, Gsz, Bsz, Asz;
+        int Rsz, Gsz, Bsz, Asz, fsaa;
         mGLSupport->getGLConfigAttrib(mEglConfig, EGL_RED_SIZE, &Rsz);
         mGLSupport->getGLConfigAttrib(mEglConfig, EGL_BLUE_SIZE, &Gsz);
         mGLSupport->getGLConfigAttrib(mEglConfig, EGL_GREEN_SIZE, &Bsz);
         mGLSupport->getGLConfigAttrib(mEglConfig, EGL_ALPHA_SIZE, &Asz);
-        LogManager::getSingleton().stream() << "X11EGLWindow::create used FBConfig = " <<
-                Rsz << "/" << Bsz << "/" << Gsz << "/" << Asz;
+        mGLSupport->getGLConfigAttrib(mEglConfig, EGL_SAMPLES, &fsaa);
+
+        LogManager::getSingleton().logMessage(
+            StringUtil::format("X11EGLWindow::create colourBufferSize=%d/%d/%d/%d gamma=%d FSAA=%d", Rsz,
+                               Bsz, Gsz, Asz, mHwGamma, fsaa));
 
         mName = name;
         mWidth = width;
@@ -591,6 +592,7 @@ namespace Ogre {
         mTop = top;
         mActive = true;
         mVisible = true;
+        mFSAA = fsaa;
 
         mClosed = false;
     }

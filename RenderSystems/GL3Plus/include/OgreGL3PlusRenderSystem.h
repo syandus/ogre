@@ -32,10 +32,11 @@ Copyright (c) 2000-2014 Torus Knot Software Ltd
 #include "OgreGL3PlusPrerequisites.h"
 
 #include "OgreMaterialManager.h"
-#include "OgreGLSLShader.h"
 #include "OgreRenderWindow.h"
 #include "OgreGLRenderSystemCommon.h"
 #include "OgreGL3PlusStateCacheManager.h"
+
+#include <array>
 
 namespace Ogre {
     /** \addtogroup RenderSystems RenderSystems
@@ -94,6 +95,7 @@ namespace Ogre {
 
         GpuProgramManager *mShaderManager;
         GLSLShaderFactory* mGLSLShaderFactory;
+        HighLevelGpuProgramFactory* mSPIRVShaderFactory;
         HardwareBufferManager* mHardwareBufferManager;
 
         /** These variables are used for caching RenderSystem state.
@@ -111,12 +113,7 @@ namespace Ogre {
 		virtual bool setDrawBuffer(ColourBufferType colourBuffer);
 #endif
 
-        GLSLShader* mCurrentVertexShader;
-        GLSLShader* mCurrentFragmentShader;
-        GLSLShader* mCurrentGeometryShader;
-        GLSLShader* mCurrentHullShader;
-        GLSLShader* mCurrentDomainShader;
-        GLSLShader* mCurrentComputeShader;
+        std::array<GLSLShader*, GPT_COUNT> mCurrentShader;
 
         GLenum getBlendMode(SceneBlendFactor ogreBlend) const;
 
@@ -269,7 +266,6 @@ namespace Ogre {
         void bindGpuProgram(GpuProgram* prg);
         void unbindGpuProgram(GpuProgramType gptype);
         void bindGpuProgramParameters(GpuProgramType gptype, const GpuProgramParametersPtr& params, uint16 mask);
-        void bindGpuProgramPassIterationParameters(GpuProgramType gptype);
 
         /// @copydoc RenderSystem::_setSeparateSceneBlending
         void _setSeparateSceneBlending( SceneBlendFactor sourceFactor, SceneBlendFactor destFactor, SceneBlendFactor sourceFactorAlpha, SceneBlendFactor destFactorAlpha, SceneBlendOperation op, SceneBlendOperation alphaOp );

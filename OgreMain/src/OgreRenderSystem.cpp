@@ -385,9 +385,8 @@ namespace Ogre {
     {
         assert( target.getPriority() < OGRE_NUM_RENDERTARGET_GROUPS );
 
-        mRenderTargets.insert( RenderTargetMap::value_type( target.getName(), &target ) );
-        mPrioritisedRenderTargets.insert(
-            RenderTargetPriorityMap::value_type(target.getPriority(), &target ));
+        mRenderTargets.emplace(target.getName(), &target);
+        mPrioritisedRenderTargets.emplace(target.getPriority(), &target);
     }
 
     //---------------------------------------------------------------------------------------------
@@ -804,35 +803,38 @@ namespace Ogre {
 
         --mCurrentPassIterationCount;
         ++mCurrentPassIterationNum;
+
+        const uint16 mask = GPV_PASS_ITERATION_NUMBER;
+
         if (mActiveVertexGpuProgramParameters)
         {
             mActiveVertexGpuProgramParameters->incPassIterationNumber();
-            bindGpuProgramPassIterationParameters(GPT_VERTEX_PROGRAM);
+            bindGpuProgramParameters(GPT_VERTEX_PROGRAM, mActiveVertexGpuProgramParameters, mask);
         }
         if (mActiveGeometryGpuProgramParameters)
         {
             mActiveGeometryGpuProgramParameters->incPassIterationNumber();
-            bindGpuProgramPassIterationParameters(GPT_GEOMETRY_PROGRAM);
+            bindGpuProgramParameters(GPT_GEOMETRY_PROGRAM, mActiveGeometryGpuProgramParameters, mask);
         }
         if (mActiveFragmentGpuProgramParameters)
         {
             mActiveFragmentGpuProgramParameters->incPassIterationNumber();
-            bindGpuProgramPassIterationParameters(GPT_FRAGMENT_PROGRAM);
+            bindGpuProgramParameters(GPT_FRAGMENT_PROGRAM, mActiveFragmentGpuProgramParameters, mask);
         }
         if (mActiveTessellationHullGpuProgramParameters)
         {
             mActiveTessellationHullGpuProgramParameters->incPassIterationNumber();
-            bindGpuProgramPassIterationParameters(GPT_HULL_PROGRAM);
+            bindGpuProgramParameters(GPT_HULL_PROGRAM, mActiveTessellationHullGpuProgramParameters, mask);
         }
         if (mActiveTessellationDomainGpuProgramParameters)
         {
             mActiveTessellationDomainGpuProgramParameters->incPassIterationNumber();
-            bindGpuProgramPassIterationParameters(GPT_DOMAIN_PROGRAM);
+            bindGpuProgramParameters(GPT_DOMAIN_PROGRAM, mActiveTessellationDomainGpuProgramParameters, mask);
         }
         if (mActiveComputeGpuProgramParameters)
         {
             mActiveComputeGpuProgramParameters->incPassIterationNumber();
-            bindGpuProgramPassIterationParameters(GPT_COMPUTE_PROGRAM);
+            bindGpuProgramParameters(GPT_COMPUTE_PROGRAM, mActiveComputeGpuProgramParameters, mask);
         }
         return true;
     }

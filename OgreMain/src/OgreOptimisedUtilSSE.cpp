@@ -1071,6 +1071,7 @@ namespace Ogre {
         size_t numWeightsPerVertex,
         size_t numVertices)
     {
+
         __OGRE_CHECK_STACK_ALIGNED_FOR_SSE();
 
         // All position/normal pointers should be perfect aligned, but still check here

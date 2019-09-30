@@ -24,6 +24,7 @@
 %include std_map.i
 #ifdef SWIGPYTHON
 %include std_multimap.i
+%include std_list.i
 #endif
 %include std_vector.i
 %include exception.i
@@ -140,6 +141,7 @@ JNIEnv* OgreJNIGetEnv() {
 %ignore Ogre::TextureUsage;
 %ignore Ogre::GpuConstantType;
 %ignore Ogre::Capabilities;
+%typemap(csbase) Ogre::SceneManager::QueryTypeMask "uint";
 %csmethodmodifiers *::ToString "public override";
 // wrong "override" because of multiple inheritance
 %csmethodmodifiers *::getMaterial "public";
@@ -170,6 +172,7 @@ JNIEnv* OgreJNIGetEnv() {
 %csmethodmodifiers *::viewportDestroyed "public";
 %csmethodmodifiers *::viewportDimensionsChanged "public";
 %csmethodmodifiers *::viewportCameraChanged "public";
+%csmethodmodifiers Ogre::BillboardChain::preRender "public";
 #endif
 
 // connect operator[] to __getitem__
@@ -330,7 +333,8 @@ ADD_REPR(ColourValue)
 %include "OgreNameGenerator.h"
 %include "OgreController.h"
 %include "OgreRenderSystemCapabilities.h"
-%ignore Ogre::GpuProgramParameters::getAutoConstantIterator; // deprecated
+%ignore Ogre::GpuProgramParameters::hasPassIterationNumber; // deprecated
+%ignore Ogre::GpuProgramParameters::getPassIterationNumberIndex; // deprecated
 %include "OgreGpuProgramParams.h"
 %include "OgreImage.h"
 %include "OgreBillboard.h"
@@ -362,6 +366,10 @@ SHARED_PTR(StringInterface);
             SHARED_PTR(HighLevelGpuProgram);
             %include "OgreHighLevelGpuProgram.h"
 %include "OgreScriptCompiler.h"
+%ignore Ogre::TextureUnitState::setCubicTexture;
+%ignore Ogre::TextureUnitState::setCubicTextureName;
+%ignore Ogre::TextureUnitState::isCubic;
+%ignore Ogre::TextureUnitState::is3D;
 %include "OgreTextureUnitState.h"
 %template(ControllerReal) Ogre::Controller<Ogre::Real>;
 %template(ControllerValueRealPtr) Ogre::SharedPtr<Ogre::ControllerValue<Ogre::Real> >;
@@ -382,6 +390,9 @@ SHARED_PTR(Compositor);
 %include "OgreCompositionTargetPass.h"
 %include "OgreResourceBackgroundQueue.h"
 SHARED_PTR(HardwareVertexBuffer);
+#ifdef SWIGPYTHON
+%template(VertexElementList) std::list<Ogre::VertexElement>;
+#endif
 %include "OgreHardwareVertexBuffer.h"
 SHARED_PTR(HardwareIndexBuffer);
 %include "OgreHardwareIndexBuffer.h"
@@ -458,6 +469,7 @@ SHARED_PTR(Material);
 %template(Techniques) std::vector<Ogre::Technique*>;
 %include "OgreMaterial.h"
 %ignore Ogre::RenderSystem::_setBindingType;
+%ignore Ogre::RenderSystem::bindGpuProgramPassIterationParameters;
 %include "OgreRenderSystem.h"
 %include "OgreCompositorManager.h"
 #ifdef SWIGJAVA
@@ -545,6 +557,8 @@ SHARED_PTR(Mesh);
 %include "OgrePatchSurface.h"
     SHARED_PTR(PatchMesh);
     %include "OgrePatchMesh.h"
+%feature("director") Ogre::MeshSerializerListener;
+%include "OgreMeshSerializer.h"
 %include "OgreMeshManager.h"
 %ignore Ogre::Pass::getTextureUnitStateIterator; // deprecated
 %ignore Ogre::Pass::hasSeparateSceneBlending;
