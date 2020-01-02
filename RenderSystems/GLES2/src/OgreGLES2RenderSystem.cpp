@@ -1969,9 +1969,7 @@ namespace Ogre {
 
         if (mask & (uint16)GPV_GLOBAL)
         {
-            // Just copy
-            params->_copySharedParams();
-            program->updateUniformBlocks();
+            params->_updateSharedParams();
         }
     }
 
