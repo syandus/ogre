@@ -1116,11 +1116,6 @@ namespace Ogre {
         return mSkeletonName;
     }
     //---------------------------------------------------------------------
-    ushort Mesh::getNumLodLevels(void) const
-    {
-        return mNumLods;
-    }
-    //---------------------------------------------------------------------
     const MeshLodUsage& Mesh::getLodLevel(ushort index) const
     {
 #if !OGRE_NO_MESHLOD
