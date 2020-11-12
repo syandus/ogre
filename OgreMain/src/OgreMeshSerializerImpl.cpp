@@ -985,7 +985,19 @@ namespace Ogre {
         if(listener)
             listener->processMaterialName(pMesh, &materialName);
         // rko: we use our own material scheme, which is never what is assigned to the mesh
-        /* sm->setMaterialName(materialName, pMesh->getGroup()); */
+        /*
+        if (auto material = MaterialManager::getSingleton().getByName(materialName, pMesh->getGroup()))
+        {
+            sm->setMaterial(material);
+        }
+        else
+        {
+            LogManager::getSingleton().logWarning("Can't assign material '" + materialName +
+                "' to SubMesh of '" + pMesh->getName() + "' because this "
+                "Material does not exist in group '"+pMesh->getGroup()+"'. Have you forgotten to define it in a "
+                ".material script?");
+        }
+        */
 
         // bool useSharedVertices
         readBools(stream,&sm->useSharedVertices, 1);
