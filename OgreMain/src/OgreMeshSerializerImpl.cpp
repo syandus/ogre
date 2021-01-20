@@ -2110,11 +2110,9 @@ namespace Ogre {
         // float length
         size += sizeof(float);
 
-        Animation::VertexTrackIterator trackIt = anim->getVertexTrackIterator();
-        while (trackIt.hasMoreElements())
+        for (const auto& trackIt : anim->_getVertexTrackList())
         {
-            VertexAnimationTrack* vt = trackIt.getNext();
-            size += calcAnimationTrackSize(vt);
+            size += calcAnimationTrackSize(trackIt.second);
         }
 
         return size;
@@ -2328,11 +2326,9 @@ namespace Ogre {
         }
 
         // tracks
-        Animation::VertexTrackIterator trackIt = anim->getVertexTrackIterator();
-        while (trackIt.hasMoreElements())
+        for (const auto& trackIt : anim->_getVertexTrackList())
         {
-            VertexAnimationTrack* vt = trackIt.getNext();
-            writeAnimationTrack(vt);
+            writeAnimationTrack(trackIt.second);
         }
         popInnerChunk(mStream);
 
