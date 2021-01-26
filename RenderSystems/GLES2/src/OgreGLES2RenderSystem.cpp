@@ -1362,14 +1362,6 @@ namespace Ogre {
 
             do
             {
-                // Update derived depth bias
-                if (mDerivedDepthBias && mCurrentPassIterationNum > 0)
-                {
-                    _setDepthBias(mDerivedDepthBiasBase +
-                                  mDerivedDepthBiasMultiplier * mCurrentPassIterationNum,
-                                  mDerivedDepthBiasSlopeScale);
-                }
-
                 if(hasInstanceData && getCapabilities()->hasCapability(RSC_VERTEX_BUFFER_INSTANCE_DATA))
                 {
                     OGRE_CHECK_GL_ERROR(glDrawElementsInstancedEXT((polyMode == GL_FILL) ? primType : polyMode, static_cast<GLsizei>(op.indexData->indexCount), indexType, pBufferData, static_cast<GLsizei>(numberOfInstances)));
@@ -1385,14 +1377,6 @@ namespace Ogre {
         {
             do
             {
-                // Update derived depth bias
-                if (mDerivedDepthBias && mCurrentPassIterationNum > 0)
-                {
-                    _setDepthBias(mDerivedDepthBiasBase +
-                                  mDerivedDepthBiasMultiplier * mCurrentPassIterationNum,
-                                  mDerivedDepthBiasSlopeScale);
-                }
-
                 if(getCapabilities()->hasCapability(RSC_VERTEX_BUFFER_INSTANCE_DATA) && hasInstanceData)
                 {
                     OGRE_CHECK_GL_ERROR(glDrawArraysInstancedEXT((polyMode == GL_FILL) ? primType : polyMode, 0, static_cast<GLsizei>(op.vertexData->vertexCount), static_cast<GLsizei>(numberOfInstances)));
