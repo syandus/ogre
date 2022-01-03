@@ -224,8 +224,8 @@ namespace Ogre {
         
         mOldWidth = width;
         mOldHeight = height;
-        if(fullScreen)
-            switchFullScreen(true);
+        /* if(fullScreen) */
+        /*     switchFullScreen(true); */
         
         EGL_CHECK_ERROR
 
