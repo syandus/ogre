@@ -22,3 +22,6 @@ cmake-build-*/
 
 # Ignore vim files
 *.swp
+
+# Syandus
+/build-wasm/
