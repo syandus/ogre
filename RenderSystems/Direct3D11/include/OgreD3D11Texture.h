@@ -94,6 +94,8 @@ namespace Ogre {
         void _create1DTex();
         /// internal method, create a blank normal 2D texture
         void _create2DTex();
+        /// internal method to create a normal 2D texture with an already existing surface
+        void _createShared2DTex();
         /// internal method, create a blank cube texture
         void _create3DTex();
 
@@ -104,12 +106,13 @@ namespace Ogre {
         /// internal method, set Texture class final texture protected attributes
         void _setFinalAttributes(unsigned long width, unsigned long height, unsigned long depth, PixelFormat format, UINT miscflags);
 
-        /// internal method, create D3D11HardwarePixelBuffers for every face and
-        /// mipmap level. This method must be called after the D3D texture object was created
-        void _createSurfaceList(void);
+        void _setD3D11Surface(void* surface) override;
 
         void notifyDeviceLost(D3D11Device* device);
         void notifyDeviceRestored(D3D11Device* device);
+
+        HardwarePixelBufferPtr createSurface(uint32 face, uint32 mip, uint32 width, uint32 height,
+                                             uint32 depth) override;
 
     protected:
         D3D11Device&	mDevice;
@@ -128,6 +131,8 @@ namespace Ogre {
 
         D3D11_SHADER_RESOURCE_VIEW_DESC mSRVDesc;
         bool mAutoMipMapGeneration;
+
+        void* mSurface = NULL;
     };
 
     /// RenderTexture implementation for D3D11

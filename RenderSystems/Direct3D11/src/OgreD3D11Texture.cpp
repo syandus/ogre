@@ -233,13 +233,22 @@ namespace Ogre
     //---------------------------------------------------------------------
     void D3D11Texture::_create2DTex()
     {
+		if (mSurface)
+		{
+			_createShared2DTex();
+			return;
+		}
         // we must have those defined here
         assert(mSrcWidth > 0 || mSrcHeight > 0);
 
         // determine total number of mipmaps including main one (d3d11 convention)
         UINT numMips = (mNumMipmaps == MIP_UNLIMITED || (1U << mNumMipmaps) > std::max(mSrcWidth, mSrcHeight)) ? 0 : mNumMipmaps + 1;
         if(D3D11Mappings::_isBinaryCompressedFormat(mD3DFormat) && numMips > 1)
-            numMips = std::max(1U, numMips - 2);
+        {
+            // Compressed texture can't have mipmaps beyond size 4x4, so remove the last two (2x2, 1x1)
+            UINT nMaxMips = getMaxMipmaps() + 1;
+            numMips = std::max(1U, std::min(numMips, nMaxMips - 2));
+        }
 
         D3D11_TEXTURE2D_DESC desc;
         desc.Width          = static_cast<UINT>(mSrcWidth);
@@ -304,6 +313,89 @@ namespace Ogre
         _create2DResourceView();
     }
     //----------------------------------------------------------------------------
+	void D3D11Texture::_createShared2DTex()
+	{
+		HRESULT hr = S_OK;
+
+		IUnknown* pUnk = (IUnknown*)mSurface;
+
+		IDXGIResource* pDXGIResource;
+		hr = pUnk->QueryInterface(__uuidof(IDXGIResource), (void**)&pDXGIResource);
+		if (FAILED(hr))
+		{
+			this->unloadImpl();
+			OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
+						   "Error creating texture\nError Description: Failed to query IDXGIResource interface from "
+						   "the provided object.",
+						   "D3D11Texture::_create2DTex");
+		}
+
+		HANDLE sharedHandle;
+		hr = pDXGIResource->GetSharedHandle(&sharedHandle);
+		if (FAILED(hr))
+		{
+			this->unloadImpl();
+			OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
+						   "Error creating texture\nError Description: Failed to retrieve the shared handle from "
+						   "IDXGIResource. Ensure the resource was "
+						   "created with the D3D11_RESOURCE_MISC_SHARED flag.",
+						   "D3D11Texture::_create2DTex");
+		}
+
+		pDXGIResource->Release();
+
+		IUnknown* tempResource11;
+		hr = mDevice->OpenSharedResource(sharedHandle, __uuidof(ID3D11Resource), (void**)(&tempResource11));
+		if (FAILED(hr))
+		{
+			this->unloadImpl();
+			OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
+						   "Error creating texture\nError Description: Failed to open shared resource using the shared "
+						   "handle. Ensure the handle is "
+						   "valid and the device supports shared resources.",
+						   "D3D11Texture::_create2DTex");
+		}
+
+		ID3D11Texture2D* pOutputResource;
+		hr = tempResource11->QueryInterface(__uuidof(ID3D11Texture2D), (void**)(&pOutputResource));
+		if (FAILED(hr))
+		{
+			this->unloadImpl();
+			OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
+						   "Error creating texture\nError Description: Failed to query ID3D11Texture2D interface from "
+						   "the shared resource. Ensure the "
+						   "resource is of the correct type.",
+						   "D3D11Texture::_create2DTex");
+		}
+		tempResource11->Release();
+
+		mp2DTex = pOutputResource;
+
+		D3D11_TEXTURE2D_DESC desc;
+		mp2DTex->GetDesc(&desc);
+
+		D3D11_RENDER_TARGET_VIEW_DESC rtDesc;
+		rtDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+		rtDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		rtDesc.Texture2D.MipSlice = 0;
+
+		ComPtr<ID3D11RenderTargetView> renderTargetView;
+		hr = mDevice->CreateRenderTargetView(mp2DTex.Get(), nullptr, renderTargetView.GetAddressOf());
+		if (FAILED(hr))
+		{
+			this->unloadImpl();
+			OGRE_EXCEPT_EX(Exception::ERR_RENDERINGAPI_ERROR, hr,
+						   "Error creating texture\nError Description: Failed to create ID3D11RenderTargetView. Verify "
+						   "that the texture is valid, "
+						   "properly initialized, and compatible with RenderTargetView creation.",
+						   "D3D11Texture::_create2DTex");
+		}
+
+		_queryInterface<ID3D11Texture2D, ID3D11Resource>(mp2DTex, &mpTex);
+
+		_create2DResourceView();
+	}
+	//----------------------------------------------------------------------------
     void D3D11Texture::_create2DResourceView()
     {
         // set final tex. attributes from tex. description
@@ -468,43 +560,19 @@ namespace Ogre
         }
 
         // Create list of subsurfaces for getBuffer()
-        _createSurfaceList();
+        createSurfaceList();
     }
     //---------------------------------------------------------------------
-    void D3D11Texture::_createSurfaceList(void)
+    HardwarePixelBufferPtr D3D11Texture::createSurface(uint32 face, uint32 mip, uint32 width, uint32 height,
+                                                       uint32 depth)
     {
-        // Create new list of surfaces
-        mSurfaceList.clear();
-        size_t depth = mDepth;
-
-        for(size_t face=0; face<getNumFaces(); ++face)
-        {
-            size_t width = mWidth;
-            size_t height = mHeight;
-            for(size_t mip=0; mip<=mNumMipmaps; ++mip)
-            { 
-
-                D3D11HardwarePixelBuffer *buffer;
-                buffer = new D3D11HardwarePixelBuffer(
-                    this, // parentTexture
-                    mDevice, // device
-                    mip, 
-                    width, 
-                    height, 
-                    depth,
-                    face,
-                    mFormat,
-                    (HardwareBuffer::Usage)mUsage
-                    ); 
-
-                mSurfaceList.push_back(HardwarePixelBufferSharedPtr(buffer));
-
-                if(width > 1) width /= 2;
-                if(height > 1) height /= 2;
-                if(depth > 1 && getTextureType() != TEX_TYPE_2D_ARRAY) depth /= 2;
-            }
-        }
+        return std::make_shared<D3D11HardwarePixelBuffer>(this,    // parentTexture
+                                                          mDevice, // device
+                                                          mip, width, height, depth, face, mFormat,
+                                                          (HardwareBuffer::Usage)mUsage);
     }
+    //---------------------------------------------------------------------
+    void D3D11Texture ::_setD3D11Surface(void* surface) { mSurface = surface; }
     //---------------------------------------------------------------------
     // D3D11RenderTexture
     //---------------------------------------------------------------------
