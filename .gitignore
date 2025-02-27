@@ -25,3 +25,5 @@ cmake-build-*/
 
 # Syandus
 /build-wasm/
+/build-wasm.debug/
+/build-wasm.release/
