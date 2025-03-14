@@ -50,14 +50,75 @@ namespace Ogre {
         kPVRTextureFlagTypePVRTC_4
     };
 
+    // adapted from https://github.com/infiniteflight/PVRTexLibNET/blob/adf43979a44029cad24f0d6888337c41dee9458a/PVRTexLibWrapper/PVRTexTool/Library/Include/PVRTTexture.h
+    // MIT License
     enum
     {
-        kPVRTC1_PF_2BPP_RGB,
-        kPVRTC1_PF_2BPP_RGBA,
-        kPVRTC1_PF_4BPP_RGB,
-        kPVRTC1_PF_4BPP_RGBA,
-        kPVRTC2_PF_2BPP,
-        kPVRTC2_PF_4BPP
+        kPVRTPF_PVRTCI_2bpp_RGB,
+        kPVRTPF_PVRTCI_2bpp_RGBA,
+        kPVRTPF_PVRTCI_4bpp_RGB,
+        kPVRTPF_PVRTCI_4bpp_RGBA,
+        kPVRTPF_PVRTCII_2bpp,
+        kPVRTPF_PVRTCII_4bpp,
+        kPVRTPF_ETC1,
+        kPVRTPF_DXT1,
+        kPVRTPF_DXT2,
+        kPVRTPF_DXT3,
+        kPVRTPF_DXT4,
+        kPVRTPF_DXT5,
+
+        //These formats are identical to some DXT formats.
+        kPVRTPF_BC1 = kPVRTPF_DXT1,
+        kPVRTPF_BC2 = kPVRTPF_DXT3,
+        kPVRTPF_BC3 = kPVRTPF_DXT5,
+
+        //These are currently unsupported:
+        kPVRTPF_BC4,
+        kPVRTPF_BC5,
+        kPVRTPF_BC6,
+        kPVRTPF_BC7,
+
+        //These are supported
+        kPVRTPF_UYVY,
+        kPVRTPF_YUY2,
+        kPVRTPF_BW1bpp,
+        kPVRTPF_SharedExponentR9G9B9E5,
+        kPVRTPF_RGBG8888,
+        kPVRTPF_GRGB8888,
+        kPVRTPF_ETC2_RGB,
+        kPVRTPF_ETC2_RGBA,
+        kPVRTPF_ETC2_RGB_A1,
+        kPVRTPF_EAC_R11,
+        kPVRTPF_EAC_RG11,
+
+        kPVRTPF_ASTC_4x4,
+        kPVRTPF_ASTC_5x4,
+        kPVRTPF_ASTC_5x5,
+        kPVRTPF_ASTC_6x5,
+        kPVRTPF_ASTC_6x6,
+        kPVRTPF_ASTC_8x5,
+        kPVRTPF_ASTC_8x6,
+        kPVRTPF_ASTC_8x8,
+        kPVRTPF_ASTC_10x5,
+        kPVRTPF_ASTC_10x6,
+        kPVRTPF_ASTC_10x8,
+        kPVRTPF_ASTC_10x10,
+        kPVRTPF_ASTC_12x10,
+        kPVRTPF_ASTC_12x12,
+
+        kPVRTPF_ASTC_3x3x3,
+        kPVRTPF_ASTC_4x3x3,
+        kPVRTPF_ASTC_4x4x3,
+        kPVRTPF_ASTC_4x4x4,
+        kPVRTPF_ASTC_5x4x4,
+        kPVRTPF_ASTC_5x5x4,
+        kPVRTPF_ASTC_5x5x5,
+        kPVRTPF_ASTC_6x5x5,
+        kPVRTPF_ASTC_6x6x5,
+        kPVRTPF_ASTC_6x6x6,
+
+        //Invalid value
+        kPVRTPF_NumCompressedPFs
     };
 
     typedef struct _PVRTCTexHeaderV2
@@ -226,24 +287,107 @@ namespace Ogre {
         PixelFormat format = PF_UNKNOWN;
         switch (header.pixelFormat)
         {
-            case kPVRTC1_PF_2BPP_RGB:
+            case kPVRTPF_PVRTCI_2bpp_RGB:
                 format = PF_PVRTC_RGB2;
                 break;
-            case kPVRTC1_PF_2BPP_RGBA:
+            case kPVRTPF_PVRTCI_2bpp_RGBA:
                 format = PF_PVRTC_RGBA2;
                 break;
-            case kPVRTC1_PF_4BPP_RGB:
+            case kPVRTPF_PVRTCI_4bpp_RGB:
                 format = PF_PVRTC_RGB4;
                 break;
-            case kPVRTC1_PF_4BPP_RGBA:
+            case kPVRTPF_PVRTCI_4bpp_RGBA:
                 format = PF_PVRTC_RGBA4;
                 break;
-            case kPVRTC2_PF_2BPP:
+            case kPVRTPF_PVRTCII_2bpp:
                 format = PF_PVRTC2_2BPP;
                 break;
-            case kPVRTC2_PF_4BPP:
+            case kPVRTPF_PVRTCII_4bpp:
                 format = PF_PVRTC2_4BPP;
                 break;
+            case kPVRTPF_ETC1:
+                format = PF_ETC1_RGB8;
+                break;
+            case kPVRTPF_DXT1:
+                format = PF_DXT1;
+                break;
+            case kPVRTPF_DXT2:
+                format = PF_DXT2;
+                break;
+            case kPVRTPF_DXT3:
+                format = PF_DXT3;
+                break;
+            case kPVRTPF_DXT4:
+                format = PF_DXT4;
+                break;
+            case kPVRTPF_DXT5:
+                format = PF_DXT5;
+                break;
+            case kPVRTPF_BC4:
+                format = PF_BC4_UNORM;
+                break;
+            case kPVRTPF_BC5:
+                format = PF_BC5_UNORM;
+                break;
+            case kPVRTPF_BC6:
+                format = PF_BC6H_UF16;
+                break;
+            case kPVRTPF_BC7:
+                format = PF_BC7_UNORM;
+                break;
+            case kPVRTPF_ETC2_RGB:
+                format = PF_ETC2_RGB8;
+                break;
+            case kPVRTPF_ETC2_RGBA:
+                format = PF_ETC2_RGBA8;
+                break;
+            case kPVRTPF_ETC2_RGB_A1:
+                format = PF_ETC2_RGB8A1;
+                break;
+            case kPVRTPF_ASTC_4x4:
+                format = PF_ASTC_RGBA_4X4_LDR;
+                break;
+            case kPVRTPF_ASTC_5x4:
+                format = PF_ASTC_RGBA_5X4_LDR;
+                break;
+            case kPVRTPF_ASTC_5x5:
+                format = PF_ASTC_RGBA_5X5_LDR;
+                break;
+            case kPVRTPF_ASTC_6x5:
+                format = PF_ASTC_RGBA_6X5_LDR;
+                break;
+            case kPVRTPF_ASTC_6x6:
+                format = PF_ASTC_RGBA_6X6_LDR;
+                break;
+            case kPVRTPF_ASTC_8x5:
+                format = PF_ASTC_RGBA_8X5_LDR;
+                break;
+            case kPVRTPF_ASTC_8x6:
+                format = PF_ASTC_RGBA_8X6_LDR;
+                break;
+            case kPVRTPF_ASTC_8x8:
+                format = PF_ASTC_RGBA_8X8_LDR;
+                break;
+            case kPVRTPF_ASTC_10x5:
+                format = PF_ASTC_RGBA_10X5_LDR;
+                break;
+            case kPVRTPF_ASTC_10x6:
+                format = PF_ASTC_RGBA_10X6_LDR;
+                break;
+            case kPVRTPF_ASTC_10x8:
+                format = PF_ASTC_RGBA_10X8_LDR;
+                break;
+            case kPVRTPF_ASTC_10x10:
+                format = PF_ASTC_RGBA_10X10_LDR;
+                break;
+            case kPVRTPF_ASTC_12x10:
+                format = PF_ASTC_RGBA_12X10_LDR;
+                break;
+            case kPVRTPF_ASTC_12x12:
+                format = PF_ASTC_RGBA_12X12_LDR;
+                break;
+            default:
+                OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS, "Invalid format: " + StringConverter::toString(header.pixelFormat));
         }
 
         // Get format flags
