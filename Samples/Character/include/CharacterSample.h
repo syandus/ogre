@@ -45,7 +45,7 @@ protected:
 
         // set shadow properties
         mSceneMgr->setShadowTechnique(SHADOWTYPE_TEXTURE_MODULATIVE_INTEGRATED);
-        mSceneMgr->setShadowTexturePixelFormat(PF_DEPTH16);
+        mSceneMgr->setShadowTexturePixelFormat(PF_BYTE_RGBA);
         mSceneMgr->setShadowColour(ColourValue(0.5, 0.5, 0.5));
         mSceneMgr->setShadowTextureSize(1024);
         mSceneMgr->setShadowTextureCount(1);
