@@ -28,6 +28,8 @@ THE SOFTWARE.
 #include "OgreShaderPrecompiledHeaders.h"
 #include "OgreMeshManager.h"
 
+#include <iostream>
+
 #ifdef RTSHADER_SYSTEM_BUILD_EXT_SHADERS
 
 namespace Ogre {
@@ -63,6 +65,7 @@ void HardwareSkinningTechnique::setHardwareSkinningParam(ushort boneCount, ushor
 
 bool HardwareSkinningTechnique::setParameter(const String& name, const String& value)
 {
+    std::cout << "setParameter: " << name << " = " << value << std::endl;
     if(name == "max_bone_count")
     {
         uint num = 0;
@@ -130,6 +133,9 @@ bool HardwareSkinningTechnique::resolveDependencies(ProgramSet* programSet)
         vsProgram->addPreprocessorDefines(StringUtil::format("WEIGHT_COUNT=%d", mWeightCount));
         if(mCorrectAntipodalityHandling)
             vsProgram->addPreprocessorDefines("CORRECT_ANTIPODALITY");
+        std::cout << "bone count: " << mBoneCount << std::endl;
+        std::cout << "weight count: " << mWeightCount << std::endl;
+        std::cout << "correct antipodality: " << mCorrectAntipodalityHandling << std::endl;
     }
 
     return true;
