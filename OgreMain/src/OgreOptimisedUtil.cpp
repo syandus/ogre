@@ -27,7 +27,7 @@ THE SOFTWARE.
 */
 #include "OgreStableHeaders.h"
 #include "OgreOptimisedUtil.h"
-
+#include <iostream>
 //#define __DO_PROFILE__
 
 namespace Ogre {
@@ -367,13 +367,9 @@ namespace Ogre {
         }
 
 #else   // !__DO_PROFILE__
-
+        std::cout << "PlatformInformation::getCpuFeatures(): " << PlatformInformation::getCpuFeatures() << std::endl;
 #if __OGRE_HAVE_SSE
-        if (PlatformInformation::getCpuFeatures() & PlatformInformation::CPU_FEATURE_SSE)
-        {
-            return _getOptimisedUtilSSE();
-        }
-        else
+        return _getOptimisedUtilSSE();
 #elif __OGRE_HAVE_NEON
         if (PlatformInformation::getCpuFeatures() & PlatformInformation::CPU_FEATURE_NEON)
         {

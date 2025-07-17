@@ -36,6 +36,7 @@ THE SOFTWARE.
 #include "OgreTangentSpaceCalc.h"
 #include "OgreLodStrategyManager.h"
 #include "OgrePixelCountLodStrategy.h"
+#include "OgreSIMDHelper.h"
 
 namespace Ogre {
     //-----------------------------------------------------------------------
@@ -1976,36 +1977,97 @@ namespace Ogre {
         float* pBase = static_cast<float*>(destLock.pData);
                 
         // Iterate over affected vertices
-        for (const auto & i : vertexOffsetMap)
+        // Check if SSE is available
+        if (true)
         {
-            // Adjust pointer
-            float *pdst = pBase + i.first*elemsPerVertex;
-
-            *pdst = *pdst + (i.second[0] * weight);
-            ++pdst;
-            *pdst = *pdst + (i.second[01] * weight);
-            ++pdst;
-            *pdst = *pdst + (i.second[2] * weight);
-            ++pdst;
+            // Pre-compute the weight vector (same weight for all components)
+            #if __OGRE_HAVE_SSE
+            __m128 weightVec = _mm_set1_ps(weight);
             
-        }
-        
-        if (normals)
-        {
-            float* pNormBase;
-            normElem->baseVertexPointerToElement((void*)pBase, &pNormBase);
-            for (const auto & i : normalsMap)
+            for (const auto & i : vertexOffsetMap)
             {
                 // Adjust pointer
-                float *pdst = pNormBase + i.first*elemsPerVertex;
+                float *pdst = pBase + i.first*elemsPerVertex;
+                
+                // Load current vertex position
+                __m128 destVec = _mm_loadu_ps(pdst); // Using unaligned load as we can't guarantee alignment
+                
+                // Load offset and multiply by weight
+                __m128 offsetVec = _mm_set_ps(0, i.second[2], i.second[1], i.second[0]);
+                offsetVec = _mm_mul_ps(offsetVec, weightVec);
+                
+                // Add the weighted offset to the current position
+                destVec = _mm_add_ps(destVec, offsetVec);
+                
+                // Store the result back
+                _mm_storeu_ps(pdst, destVec);
+            }
+            #endif
+        }
+        else
+        {
+            // Fallback to non-SSE implementation
+            for (const auto & i : vertexOffsetMap)
+            {
+                // Adjust pointer
+                float *pdst = pBase + i.first*elemsPerVertex;
 
                 *pdst = *pdst + (i.second[0] * weight);
                 ++pdst;
                 *pdst = *pdst + (i.second[1] * weight);
                 ++pdst;
                 *pdst = *pdst + (i.second[2] * weight);
-                ++pdst;             
+                ++pdst;
+            }
+        }
+        
+        if (normals)
+        {
+            float* pNormBase;
+            normElem->baseVertexPointerToElement((void*)pBase, &pNormBase);
+            
+            // Check if SSE is available
+            if (true)
+            {
+                // Pre-compute the weight vector (same weight for all components)
+                #if __OGRE_HAVE_SSE
+                __m128 weightVec = _mm_set1_ps(weight);
                 
+                for (const auto & i : normalsMap)
+                {
+                    // Adjust pointer
+                    float *pdst = pNormBase + i.first*elemsPerVertex;
+                    
+                    // Load current normal
+                    __m128 destVec = _mm_loadu_ps(pdst); // Using unaligned load as we can't guarantee alignment
+                    
+                    // Load offset and multiply by weight
+                    __m128 offsetVec = _mm_set_ps(0, i.second[2], i.second[1], i.second[0]);
+                    offsetVec = _mm_mul_ps(offsetVec, weightVec);
+                    
+                    // Add the weighted offset to the current normal
+                    destVec = _mm_add_ps(destVec, offsetVec);
+                    
+                    // Store the result back
+                    _mm_storeu_ps(pdst, destVec);
+                }
+                #endif
+            }
+            else
+            {
+                // Fallback to non-SSE implementation
+                for (const auto & i : normalsMap)
+                {
+                    // Adjust pointer
+                    float *pdst = pNormBase + i.first*elemsPerVertex;
+
+                    *pdst = *pdst + (i.second[0] * weight);
+                    ++pdst;
+                    *pdst = *pdst + (i.second[1] * weight);
+                    ++pdst;
+                    *pdst = *pdst + (i.second[2] * weight);
+                    ++pdst;
+                }
             }
         }
     }

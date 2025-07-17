@@ -244,6 +244,7 @@ elseif (ANDROID)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 elseif(EMSCRIPTEN)
   add_definitions(-DEMSCRIPTEN=1 -D__EMSCRIPTEN__=1)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msimd128 -msse4.2")
   set(TargetPlatform "Emscripten")
   set(OGRE_PLATFORM OGRE_PLATFORM_EMSCRIPTEN)
 
