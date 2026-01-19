@@ -27,3 +27,50 @@ Changed shadow texture pixel format from `PF_DEPTH16` to `PF_BYTE_RGBA` as a wor
 
 - Added build directories to `.gitignore` (`/build-wasm/` and others)
 - Added VS Code workspace settings (`.vscode/settings.json`)
+
+## Development
+
+There are no tests.
+
+### Building (WebAssembly)
+
+Build directories are pre-configured. To build:
+
+```bash
+cd build-wasm.debug   # or build-wasm.release
+emmake make -j8
+```
+
+If the build fails with Emscripten not found, ask the user to restart the session with:
+
+```bash
+source ~/src/emsdk/emsdk_env.fish
+```
+
+### Recreating Build Directory (if necessary)
+
+Only use this if the build directory is corrupted or missing. Confirm with the user first.
+
+**Debug:**
+```bash
+rm -rf build-wasm.debug
+mkdir -p build-wasm.debug
+cd build-wasm.debug
+emcmake cmake .. \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -D__OGRE_HAVE_SSE=1 \
+  -DOGRE_CONFIG_ENABLE_PVRTC=1
+emmake make -j8
+```
+
+**Release:**
+```bash
+rm -rf build-wasm.release
+mkdir -p build-wasm.release
+cd build-wasm.release
+emcmake cmake .. \
+  -DCMAKE_BUILD_TYPE=Release \
+  -D__OGRE_HAVE_SSE=1 \
+  -DOGRE_CONFIG_ENABLE_PVRTC=1
+emmake make -j8
+```
