@@ -171,6 +171,10 @@ namespace Ogre {
         bool mUpdateBoundingBoxFromSkeleton : 1;
         /// Flag indicating whether we have a vertex program in use on any of our subentities.
         bool mVertexProgramInUse : 1;
+        /// Has finalisePoseNormals been hit for this entity?
+        bool mLoggedPoseNormalsFinalise : 1;
+        /// Has initialisePoseVertexData animateNormals been hit for this entity?
+        bool mLoggedPoseNormalsInit : 1;
         /// Has this entity been initialised yet?
         bool mInitialised : 1;
 

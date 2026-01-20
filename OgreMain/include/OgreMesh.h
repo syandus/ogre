@@ -185,6 +185,10 @@ namespace Ogre {
         mutable VertexAnimationType mSharedVertexDataAnimationType;
         /// Whether vertex animation includes normals
         mutable bool mSharedVertexDataAnimationIncludesNormals;
+        /// Has pose normals detection been logged for this mesh?
+        mutable bool mLoggedPoseNormalsDetected;
+        /// Has morph normals detection been logged for this mesh?
+        mutable bool mLoggedMorphNormalsDetected;
         /// Do we need to scan animations for animation types?
         mutable bool mAnimationTypesDirty;
 

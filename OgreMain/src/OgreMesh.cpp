@@ -63,6 +63,8 @@ namespace Ogre {
         mAutoBuildEdgeLists(false), // will be set to true by serializers of 1.20 and below
         mSharedVertexDataAnimationType(VAT_NONE),
         mSharedVertexDataAnimationIncludesNormals(false),
+        mLoggedPoseNormalsDetected(false),
+        mLoggedMorphNormalsDetected(false),
         mAnimationTypesDirty(true),
         mPosesIncludeNormals(false),
         sharedVertexData(0)
@@ -2146,9 +2148,9 @@ namespace Ogre {
                 if (handle == 0)
                 {
                     // shared data
-                    if (mSharedVertexDataAnimationType != VAT_NONE &&
-                        mSharedVertexDataAnimationType != track->getAnimationType())
-                    {
+                if (mSharedVertexDataAnimationType != VAT_NONE &&
+                    mSharedVertexDataAnimationType != track->getAnimationType())
+                {
                         // Mixing of morph and pose animation on same data is not allowed
                         OGRE_EXCEPT(Exception::ERR_INVALIDPARAMS,
                             "Animation tracks for shared vertex data on mesh "
@@ -2157,10 +2159,29 @@ namespace Ogre {
                             "Mesh::_determineAnimationTypes");
                     }
                     mSharedVertexDataAnimationType = track->getAnimationType();
-                    if (track->getAnimationType() == VAT_MORPH)
+                    const bool isMorph = track->getAnimationType() == VAT_MORPH;
+                    if (isMorph)
                         mSharedVertexDataAnimationIncludesNormals = track->getVertexAnimationIncludesNormals();
                     else
                         mSharedVertexDataAnimationIncludesNormals = mPosesIncludeNormals;
+
+                    if (mSharedVertexDataAnimationIncludesNormals && LogManager::getSingletonPtr())
+                    {
+                        if (isMorph && !mLoggedMorphNormalsDetected)
+                        {
+                            mLoggedMorphNormalsDetected = true;
+                            LogManager::getSingleton().logMessage(
+                                "[pose-normals] Mesh '" + mName +
+                                "': morph animation includes normals (shared vertex data)");
+                        }
+                        else if (!isMorph && !mLoggedPoseNormalsDetected)
+                        {
+                            mLoggedPoseNormalsDetected = true;
+                            LogManager::getSingleton().logMessage(
+                                "[pose-normals] Mesh '" + mName +
+                                "': pose animation includes normals (shared vertex data)");
+                        }
+                    }
 
                 }
                 else
@@ -2179,10 +2200,31 @@ namespace Ogre {
                             "Mesh::_determineAnimationTypes");
                     }
                     sm->mVertexAnimationType = track->getAnimationType();
-                    if (track->getAnimationType() == VAT_MORPH)
+                    const bool isMorph = track->getAnimationType() == VAT_MORPH;
+                    if (isMorph)
                         sm->mVertexAnimationIncludesNormals = track->getVertexAnimationIncludesNormals();
                     else
                         sm->mVertexAnimationIncludesNormals = mPosesIncludeNormals;
+
+                    if (sm->mVertexAnimationIncludesNormals && LogManager::getSingletonPtr())
+                    {
+                        if (isMorph && !mLoggedMorphNormalsDetected)
+                        {
+                            mLoggedMorphNormalsDetected = true;
+                            LogManager::getSingleton().logMessage(
+                                "[pose-normals] Mesh '" + mName +
+                                "': morph animation includes normals (submesh " +
+                                StringConverter::toString(handle - 1) + ")");
+                        }
+                        else if (!isMorph && !mLoggedPoseNormalsDetected)
+                        {
+                            mLoggedPoseNormalsDetected = true;
+                            LogManager::getSingleton().logMessage(
+                                "[pose-normals] Mesh '" + mName +
+                                "': pose animation includes normals (submesh " +
+                                StringConverter::toString(handle - 1) + ")");
+                        }
+                    }
 
                 }
             }

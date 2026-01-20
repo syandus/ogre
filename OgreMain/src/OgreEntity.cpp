@@ -48,6 +48,8 @@ namespace Ogre {
           mAlwaysUpdateMainSkeleton(false),
           mUpdateBoundingBoxFromSkeleton(false),
           mVertexProgramInUse(false),
+          mLoggedPoseNormalsFinalise(false),
+          mLoggedPoseNormalsInit(false),
           mInitialised(false),
           mHardwarePoseCount(0),
           mNumBoneMatrices(0),
@@ -1180,6 +1182,16 @@ namespace Ogre {
         // If normals are included in animation, we want to reset the normals to zero
         if (animateNormals)
         {
+            if (!mLoggedPoseNormalsInit)
+            {
+                mLoggedPoseNormalsInit = true;
+                if (LogManager::getSingletonPtr())
+                {
+                    LogManager::getSingleton().logMessage(
+                        "[pose-normals] initialisePoseVertexData: entity '" + mName +
+                        "' pose normals enabled (animateNormals=true)");
+                }
+            }
             const VertexElement* normElem =
                 destData->vertexDeclaration->findElementBySemantic(VES_NORMAL);
 
@@ -1213,6 +1225,15 @@ namespace Ogre {
 
         if (destNormElem && srcNormElem)
         {
+            if (!mLoggedPoseNormalsFinalise)
+            {
+                mLoggedPoseNormalsFinalise = true;
+                if (LogManager::getSingletonPtr())
+                {
+                    LogManager::getSingleton().logMessage(
+                        "[pose-normals] finalisePoseNormals: entity '" + mName + "'");
+                }
+            }
             auto srcbuf = srcData->vertexBufferBinding->getBuffer(srcNormElem->getSource());
             auto dstbuf = destData->vertexBufferBinding->getBuffer(destNormElem->getSource());
 
