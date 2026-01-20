@@ -189,6 +189,8 @@ namespace Ogre {
         mutable bool mLoggedPoseNormalsDetected;
         /// Has morph normals detection been logged for this mesh?
         mutable bool mLoggedMorphNormalsDetected;
+        /// Ignore pose normals even if the data includes them
+        bool mIgnorePoseNormals;
         /// Do we need to scan animations for animation types?
         mutable bool mAnimationTypesDirty;
 
@@ -853,6 +855,10 @@ namespace Ogre {
 
         /// Returns whether animation on shared vertex data includes normals.
         bool getSharedVertexDataAnimationIncludesNormals() const { return mSharedVertexDataAnimationIncludesNormals; }
+        /// Ignore pose normals even if they are present in the data.
+        void setIgnorePoseNormals(bool ignore) { mIgnorePoseNormals = ignore; mAnimationTypesDirty = true; }
+        /// Returns whether pose normals are ignored.
+        bool getIgnorePoseNormals(void) const { return mIgnorePoseNormals; }
 
         Animation* createAnimation(const String& name, Real length) override;
 

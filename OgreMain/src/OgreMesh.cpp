@@ -65,6 +65,7 @@ namespace Ogre {
         mSharedVertexDataAnimationIncludesNormals(false),
         mLoggedPoseNormalsDetected(false),
         mLoggedMorphNormalsDetected(false),
+        mIgnorePoseNormals(false),
         mAnimationTypesDirty(true),
         mPosesIncludeNormals(false),
         sharedVertexData(0)
@@ -341,6 +342,7 @@ namespace Ogre {
         newMesh->mBoneBoundingRadius = mBoneBoundingRadius;
         newMesh->mAutoBuildEdgeLists = mAutoBuildEdgeLists;
         newMesh->mEdgeListsBuilt = mEdgeListsBuilt;
+        newMesh->mIgnorePoseNormals = mIgnorePoseNormals;
 
 #if !OGRE_NO_MESHLOD
         newMesh->mHasManualLodLevel = mHasManualLodLevel;
@@ -2136,6 +2138,8 @@ namespace Ogre {
                 // only support normals if consistently included
                 mPosesIncludeNormals = mPosesIncludeNormals && (*i)->getIncludesNormals();
         }
+        if (mIgnorePoseNormals)
+            mPosesIncludeNormals = false;
 
         // Scan all animations and determine the type of animation tracks
         // relating to each vertex data
