@@ -369,21 +369,21 @@ namespace Ogre {
 #else   // !__DO_PROFILE__
 
 #if __OGRE_HAVE_SSE
+#   if defined(__EMSCRIPTEN__)
+        return _getOptimisedUtilSSE();
+#   else
         if (PlatformInformation::getCpuFeatures() & PlatformInformation::CPU_FEATURE_SSE)
         {
             return _getOptimisedUtilSSE();
         }
-        else
+#   endif
 #elif __OGRE_HAVE_NEON
         if (PlatformInformation::getCpuFeatures() & PlatformInformation::CPU_FEATURE_NEON)
         {
             return _getOptimisedUtilSSE();
         }
-        else
 #endif  // __OGRE_HAVE_SSE
-        {
-            return _getOptimisedUtilGeneral();
-        }
+        return _getOptimisedUtilGeneral();
 
 #endif  // __DO_PROFILE__
     }

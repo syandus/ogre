@@ -38,6 +38,10 @@ THE SOFTWARE.
 #include "OgrePixelCountLodStrategy.h"
 #include "OgreDefaultHardwareBufferManager.h"
 
+#if __OGRE_HAVE_SSE
+#   include <xmmintrin.h>
+#endif
+
 namespace Ogre {
     //-----------------------------------------------------------------------
     Mesh::Mesh(ResourceManager* creator, const String& name, ResourceHandle handle,
@@ -1979,37 +1983,75 @@ namespace Ogre {
         HardwareBufferLockGuard destLock(destBuf, HardwareBuffer::HBL_NORMAL);
         float* pBase = static_cast<float*>(destLock.pData);
 
+        const bool useSimd = elemsPerVertex >= 4;
+
         // Iterate over affected vertices
-        for (const auto & i : vertexOffsetMap)
+#if __OGRE_HAVE_SSE
+        if (useSimd)
         {
-            // Adjust pointer
-            float *pdst = pBase + i.first*elemsPerVertex;
+            const __m128 weight4 = _mm_set1_ps(weight);
+            for (const auto & i : vertexOffsetMap)
+            {
+                // Adjust pointer
+                float *pdst = pBase + i.first*elemsPerVertex;
 
-            *pdst = *pdst + (i.second[0] * weight);
-            ++pdst;
-            *pdst = *pdst + (i.second[01] * weight);
-            ++pdst;
-            *pdst = *pdst + (i.second[2] * weight);
-            ++pdst;
+                const __m128 dst = _mm_loadu_ps(pdst);
+                const __m128 delta = _mm_set_ps(0.0f, i.second[2], i.second[1], i.second[0]);
+                const __m128 out = _mm_add_ps(dst, _mm_mul_ps(delta, weight4));
+                _mm_storeu_ps(pdst, out);
+            }
+        }
+        else
+#endif
+        {
+            for (const auto & i : vertexOffsetMap)
+            {
+                // Adjust pointer
+                float *pdst = pBase + i.first*elemsPerVertex;
 
+                *pdst = *pdst + (i.second[0] * weight);
+                ++pdst;
+                *pdst = *pdst + (i.second[01] * weight);
+                ++pdst;
+                *pdst = *pdst + (i.second[2] * weight);
+                ++pdst;
+            }
         }
 
         if (normals)
         {
             float* pNormBase;
             normElem->baseVertexPointerToElement((void*)pBase, &pNormBase);
-            for (const auto & i : normalsMap)
+#if __OGRE_HAVE_SSE
+            if (useSimd)
             {
-                // Adjust pointer
-                float *pdst = pNormBase + i.first*elemsPerVertex;
+                const __m128 weight4 = _mm_set1_ps(weight);
+                for (const auto & i : normalsMap)
+                {
+                    // Adjust pointer
+                    float *pdst = pNormBase + i.first*elemsPerVertex;
 
-                *pdst = *pdst + (i.second[0] * weight);
-                ++pdst;
-                *pdst = *pdst + (i.second[1] * weight);
-                ++pdst;
-                *pdst = *pdst + (i.second[2] * weight);
-                ++pdst;
+                    const __m128 dst = _mm_loadu_ps(pdst);
+                    const __m128 delta = _mm_set_ps(0.0f, i.second[2], i.second[1], i.second[0]);
+                    const __m128 out = _mm_add_ps(dst, _mm_mul_ps(delta, weight4));
+                    _mm_storeu_ps(pdst, out);
+                }
+            }
+            else
+#endif
+            {
+                for (const auto & i : normalsMap)
+                {
+                    // Adjust pointer
+                    float *pdst = pNormBase + i.first*elemsPerVertex;
 
+                    *pdst = *pdst + (i.second[0] * weight);
+                    ++pdst;
+                    *pdst = *pdst + (i.second[1] * weight);
+                    ++pdst;
+                    *pdst = *pdst + (i.second[2] * weight);
+                    ++pdst;
+                }
             }
         }
     }
@@ -2367,4 +2409,3 @@ namespace Ogre {
                 s->vertexData->convertVertexElement(semantic, dstType);
     }
 }
-

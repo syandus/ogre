@@ -1039,6 +1039,9 @@ namespace Ogre {
     OptimisedUtilSSE::OptimisedUtilSSE(void)
         : mPreferGeneralVersionForSharedBuffers(false)
     {
+#if defined(__EMSCRIPTEN__)
+        mPreferGeneralVersionForSharedBuffers = true;
+#else
         // For AMD Athlon XP (but not that for Althon 64), it's prefer to never use
         // unrolled version for shared buffers at all, I guess because that version
         // run out of usable CPU registers, or L1/L2 cache related problem, causing
@@ -1057,6 +1060,7 @@ namespace Ogre {
                 mPreferGeneralVersionForSharedBuffers = true;
             }
         }
+#endif
 #endif
     }
     //---------------------------------------------------------------------

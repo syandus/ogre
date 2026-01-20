@@ -35,8 +35,8 @@ namespace Ogre {
 */
 #if   OGRE_DOUBLE_PRECISION == 0 && OGRE_CPU == OGRE_CPU_X86 && OGRE_COMPILER == OGRE_COMPILER_MSVC
 #   define __OGRE_HAVE_SSE  1
-#elif OGRE_DOUBLE_PRECISION == 0 && OGRE_CPU == OGRE_CPU_X86 && (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && \
-      OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS
+#elif OGRE_DOUBLE_PRECISION == 0 && ((OGRE_CPU == OGRE_CPU_X86 && (OGRE_COMPILER == OGRE_COMPILER_GNUC || OGRE_COMPILER == OGRE_COMPILER_CLANG) && \
+      OGRE_PLATFORM != OGRE_PLATFORM_APPLE_IOS) || defined(__EMSCRIPTEN__))
 #   define __OGRE_HAVE_SSE  1
 #endif
 
@@ -60,6 +60,12 @@ namespace Ogre {
 
 #ifndef __OGRE_HAVE_SSE
 #   define __OGRE_HAVE_SSE  0
+#endif
+
+#if defined(__EMSCRIPTEN__)
+#   if !defined(__wasm_simd128__)
+#       error "WebSIMD required"
+#   endif
 #endif
 
 #ifndef __OGRE_HAVE_VFP
@@ -102,7 +108,7 @@ namespace Ogre {
         /// Enum describing the different CPU features we want to check for, platform-dependent
         enum CpuFeatures
         {
-#if OGRE_CPU == OGRE_CPU_X86
+#if OGRE_CPU == OGRE_CPU_X86 || defined(__EMSCRIPTEN__)
             CPU_FEATURE_SSE             = 1 << 0,
             CPU_FEATURE_SSE2            = 1 << 1,
             CPU_FEATURE_SSE3            = 1 << 2,
