@@ -129,7 +129,8 @@ ShaderGenerator& ShaderGenerator::getSingleton()
 ShaderGenerator::ShaderGenerator() :
     mActiveSceneMgr(NULL), mShaderLanguage(""),
     mActiveViewportValid(false), mVSOutputCompactPolicy(VSOCP_LOW),
-    mCreateShaderOverProgrammablePass(false), mIsFinalizing(false), mTargetLinearColours(false)
+    mCreateShaderOverProgrammablePass(false), mIsFinalizing(false), mTargetLinearColours(false),
+    mTargetConsumesLinear(true), mOutputGamma(2.2f)
 {
     mLightCount[0]              = 0;
     mLightCount[1]              = 0;

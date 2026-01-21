@@ -462,6 +462,12 @@ public:
      */
     void setTargetLinearColours(bool linear) { mTargetLinearColours = linear; }
     bool getTargetLinearColours() const { return mTargetLinearColours; }
+    /** Set whether the render target consumes linear values (i.e. hardware does linear->sRGB). */
+    void setTargetConsumesLinear(bool consumesLinear) { mTargetConsumesLinear = consumesLinear; }
+    bool getTargetConsumesLinear() const { return mTargetConsumesLinear; }
+    /** Output gamma for shader-side linear->gamma conversion when required. */
+    void setOutputGamma(Real gamma) { mOutputGamma = gamma; }
+    Real getOutputGamma() const { return mOutputGamma; }
 
     /// mark the given texture unit as non-FFP
     static void _markNonFFP(const TextureUnitState* tu);
@@ -884,6 +890,8 @@ private:
     // A flag to indicate finalizing
     bool mIsFinalizing;
     bool mTargetLinearColours;
+    bool mTargetConsumesLinear;
+    Real mOutputGamma;
 
     uint32 ID_RT_SHADER_SYSTEM;
 
@@ -901,4 +909,3 @@ private:
 }
 
 #endif
-
