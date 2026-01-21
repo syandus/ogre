@@ -62,6 +62,16 @@ bool FFPColour::resolveParameters(ProgramSet* programSet)
     Function* vsMain   = vsProgram->getEntryPointFunction();
     Function* psMain   = psProgram->getEntryPointFunction();    
 
+    mPSDesaturation.reset();
+    const int desatIndex = ShaderGenerator::getSingleton().getDesaturationCustomParamIndex();
+    if (desatIndex >= 0)
+    {
+        mPSDesaturation = psProgram->resolveParameter(GpuProgramParameters::ACT_CUSTOM,
+                                                      static_cast<uint32>(desatIndex));
+        if (!mPSDesaturation)
+            return false;
+    }
+
     if (mResolveStageFlags & SF_VS_INPUT_DIFFUSE)
         mVSInputDiffuse  = vsMain->resolveInputParameter(Parameter::SPC_COLOR_DIFFUSE);
 
@@ -169,7 +179,10 @@ bool FFPColour::addFunctionInvocations(ProgramSet* programSet)
     psMain->getStage(FFP_PS_COLOUR_END)
         .add(In(mPSOutputDiffuse).xyz(), In(psSpecular).xyz(), Out(mPSOutputDiffuse).xyz());
 
-    psMain->getStage(FFP_PS_POST_PROCESS).callFunction("COLOUR_TRANSFER", mPSOutputDiffuse);
+    auto postStage = psMain->getStage(FFP_PS_POST_PROCESS);
+    if (mPSDesaturation)
+        postStage.callFunction("RTSS_DESATURATE", {InOut(mPSOutputDiffuse), In(mPSDesaturation).x()});
+    postStage.callFunction("COLOUR_TRANSFER", mPSOutputDiffuse);
     return true;
 }
 

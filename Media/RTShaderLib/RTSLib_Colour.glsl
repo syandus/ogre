@@ -18,3 +18,9 @@
 #else
 #define COLOUR_TRANSFER(colour)
 #endif
+
+void RTSS_DESATURATE(inout vec4 colour, float amount)
+{
+    float luma = dot(colour.rgb, vec3(0.299, 0.587, 0.114));
+    colour.rgb = mix(colour.rgb, vec3(luma), clamp(amount, 0.0, 1.0));
+}

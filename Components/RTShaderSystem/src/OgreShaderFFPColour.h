@@ -127,6 +127,8 @@ protected:
     ParameterPtr mPSInputSpecular;
     // Pixel shader output diffuse component.
     ParameterPtr mPSOutputDiffuse;
+    // Optional per-renderable desaturation factor (ACT_CUSTOM).
+    UniformParameterPtr mPSDesaturation;
     // Stage flags that defines resolve parameters definitions.
     unsigned int mResolveStageFlags;
 };

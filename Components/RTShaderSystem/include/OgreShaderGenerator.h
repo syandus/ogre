@@ -468,6 +468,9 @@ public:
     /** Output gamma for shader-side linear->gamma conversion when required. */
     void setOutputGamma(Real gamma) { mOutputGamma = gamma; }
     Real getOutputGamma() const { return mOutputGamma; }
+    /** Custom parameter index used for per-renderable desaturation (-1 disables). */
+    void setDesaturationCustomParamIndex(int index) { mDesaturationCustomParamIndex = index; }
+    int getDesaturationCustomParamIndex() const { return mDesaturationCustomParamIndex; }
 
     /// mark the given texture unit as non-FFP
     static void _markNonFFP(const TextureUnitState* tu);
@@ -892,6 +895,7 @@ private:
     bool mTargetLinearColours;
     bool mTargetConsumesLinear;
     Real mOutputGamma;
+    int mDesaturationCustomParamIndex;
 
     uint32 ID_RT_SHADER_SYSTEM;
 
