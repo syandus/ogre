@@ -386,7 +386,12 @@ void FFPTexturing::addPSSampleTexelInvocation(TextureUnitParams* textureUnitPara
     if (textureUnitParams->mTexCoordCalcMethod != TEXCALC_PROJECTIVE_TEXTURE)
     {
         stage.sampleTexture(textureUnitParams->mTextureSampler, textureUnitParams->mPSInputTexCoord, texel);
-        if (canHaveGammaColour(textureUnitParams->mTextureUnitState))
+        bool enableLinear = canHaveGammaColour(textureUnitParams->mTextureUnitState);
+        const auto* tus = textureUnitParams->mTextureUnitState;
+        String texName = tus ? tus->getTextureName() : "<null>";
+        LogManager::getSingleton().logMessage(
+            "RTSS: texture '" + texName + "' linear colour conversion " + (enableLinear ? "ENABLED" : "DISABLED"));
+        if (enableLinear)
             stage.callFunction("ENABLE_LINEAR_COLOUR", texel);
         return;
     }
