@@ -138,7 +138,10 @@ vec3 evaluateLight(
         return vec3_splat(0.0); // not lit by this light
 
     // https://google.github.io/filament/Filament.md.html#toc5.6.2
-    float f90 = saturate(dot(pixel.f0, vec3_splat(50.0 * 0.33)));
+#ifndef OGRE_FRESNEL_F90_SCALE
+#define OGRE_FRESNEL_F90_SCALE 0.35
+#endif
+    float f90 = saturate(dot(pixel.f0, vec3_splat(50.0 * 0.33))) * OGRE_FRESNEL_F90_SCALE;
 
 	vec3 vView       = -normalize(viewPos);
 
