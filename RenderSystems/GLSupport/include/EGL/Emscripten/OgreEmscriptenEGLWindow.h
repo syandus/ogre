@@ -55,6 +55,7 @@ namespace Ogre {
         int mOldWidth;
         int mOldHeight;
         String mCanvasSelector;
+        void validateSampleFramebuffer();
         
     protected:
         void resize(unsigned int width, unsigned int height) override;

@@ -36,11 +36,46 @@ THE SOFTWARE.
 #include "OgreEmscriptenEGLSupport.h"
 #include "OgreEmscriptenEGLWindow.h"
 
+#include <GLES2/gl2.h>
+#include <emscripten/html5_webgl.h>
+
 #include <iostream>
 #include <algorithm>
 #include <climits>
 
 namespace Ogre {
+    namespace
+    {
+        struct WebGLSampleState
+        {
+            bool antialias = false;
+            GLint sampleBuffers = 0;
+            GLint samples = 0;
+        };
+
+        WebGLSampleState querySampleState()
+        {
+            WebGLSampleState state;
+
+            const EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context = emscripten_webgl_get_current_context();
+            if (context)
+            {
+                EmscriptenWebGLContextAttributes attrs;
+                if (emscripten_webgl_get_context_attributes(context, &attrs) == EMSCRIPTEN_RESULT_SUCCESS)
+                    state.antialias = attrs.antialias;
+            }
+
+            GLint previousFramebuffer = 0;
+            glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previousFramebuffer);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glGetIntegerv(GL_SAMPLE_BUFFERS, &state.sampleBuffers);
+            glGetIntegerv(GL_SAMPLES, &state.samples);
+            glBindFramebuffer(GL_FRAMEBUFFER, previousFramebuffer);
+
+            return state;
+        }
+    }
+
     EmscriptenEGLWindow::EmscriptenEGLWindow(EmscriptenEGLSupport *glsupport)
         : EGLWindow(glsupport),
           mMaxBufferSize(32),
@@ -83,6 +118,27 @@ namespace Ogre {
         
         
         LogManager::getSingleton().logMessage("EmscriptenEGLWindow::resize "+mCanvasSelector+" w:" + Ogre::StringConverter::toString(mWidth) + " h:" + Ogre::StringConverter::toString(mHeight));
+    }
+
+    void EmscriptenEGLWindow::validateSampleFramebuffer()
+    {
+        const WebGLSampleState sampleState = querySampleState();
+
+        mFSAA = (sampleState.sampleBuffers > 0) ? sampleState.samples : 0;
+
+        LogManager::getSingleton().logMessage(StringUtil::format(
+            "EmscriptenEGLWindow: requested canvas FSAA=%d, WebGL antialias=%d, GL_SAMPLE_BUFFERS=%d, GL_SAMPLES=%d",
+            mMSAA, sampleState.antialias, sampleState.sampleBuffers, sampleState.samples));
+
+        if (mMSAA > 0 && (sampleState.sampleBuffers <= 0 || sampleState.samples <= 1))
+        {
+            OGRE_EXCEPT(Exception::ERR_RENDERINGAPI_ERROR,
+                        StringUtil::format(
+                            "Requested an MSAA WebGL canvas (FSAA=%d), but the actual default framebuffer is not multisampled "
+                            "(WebGL antialias=%d, GL_SAMPLE_BUFFERS=%d, GL_SAMPLES=%d).",
+                            mMSAA, sampleState.antialias, sampleState.sampleBuffers, sampleState.samples),
+                        "EmscriptenEGLWindow::validateSampleFramebuffer");
+        }
     }
 
     void EmscriptenEGLWindow::windowMovedOrResized()
@@ -192,6 +248,7 @@ namespace Ogre {
         
         mContext = createEGLContext(eglContext);
         mContext->setCurrent();
+        validateSampleFramebuffer();
         EMSCRIPTEN_RESULT result = emscripten_set_canvas_element_size(mCanvasSelector.c_str(), width, height);
         
         if(result < 0)
@@ -331,6 +388,8 @@ namespace Ogre {
             mClosed = false;
             
             static_cast<EGLContext*>(mContext)->_createInternalResources(mEglDisplay, mEglConfig, mEglSurface, nullptr);
+            mContext->setCurrent();
+            validateSampleFramebuffer();
             
             static_cast<GLRenderSystemCommon*>(Ogre::Root::getSingleton().getRenderSystem())->resetRenderer(this);
         }
