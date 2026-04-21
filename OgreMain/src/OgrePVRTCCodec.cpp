@@ -271,7 +271,6 @@ namespace Ogre {
     void PVRTCCodec::decodeV3(const DataStreamPtr& stream, Image* image)
     {
         PVRTCTexHeaderV3 header;
-        PVRTCMetadata metadata;
         uint32 flags = 0;
 
         // Read the PVRTC header
@@ -280,7 +279,7 @@ namespace Ogre {
         // Read the PVRTC metadata
         if(header.metaDataSize)
         {
-            stream->read(&metadata, sizeof(PVRTCMetadata));
+            stream->skip(header.metaDataSize);
         }
 
         // Identify the pixel format
