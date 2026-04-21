@@ -289,6 +289,7 @@ namespace Ogre {
             checkExtension("WEBGL_compressed_texture_atc") ||
             checkExtension("WEBGL_compressed_texture_pvrtc") ||
             checkExtension("WEBGL_compressed_texture_etc1") ||
+            checkExtension("WEBGL_compressed_texture_etc") ||
             checkExtension("WEBGL_compressed_texture_astc") ||
             checkExtension("GL_KHR_texture_compression_astc_ldr"))
 
@@ -309,7 +310,11 @@ namespace Ogre {
                checkExtension("WEBGL_compressed_texture_etc1"))
                 rsc->setCapability(RSC_TEXTURE_COMPRESSION_ETC1);
 
+#if OGRE_PLATFORM == OGRE_PLATFORM_EMSCRIPTEN
+            if(checkExtension("WEBGL_compressed_texture_etc"))
+#else
             if(hasMinGLVersion(3, 0))
+#endif
                 rsc->setCapability(RSC_TEXTURE_COMPRESSION_ETC2);
 
             if(checkExtension("GL_AMD_compressed_ATC_texture") ||
