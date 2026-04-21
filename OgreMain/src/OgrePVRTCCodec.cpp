@@ -393,8 +393,9 @@ namespace Ogre {
         flags = header.flags;
         flipEndian(&flags, sizeof(uint32));
 
-        // Calculate total size from number of mipmaps, faces and size
-        image->create(format, header.width, header.height, header.depth, header.numFaces, header.mipMapCount);
+        // PVR v3 counts the base level; Ogre stores only additional mip levels.
+        uint32 numMipMaps = header.mipMapCount ? header.mipMapCount - 1 : 0;
+        image->create(format, header.width, header.height, header.depth, header.numFaces, numMipMaps);
 
         // Now deal with the data
         void *destPtr = image->getData();
