@@ -2,6 +2,7 @@
 [OgreInternal]
 APKFileSystem=/Main
 APKFileSystem=/RTShaderLib
+APKFileSystem=/SyHair
 APKFileSystem=/Terrain
 
 # Resources required by the sample browser and most samples.

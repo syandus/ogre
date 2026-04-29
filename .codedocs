@@ -691,6 +691,7 @@ INPUT                  = OgreMain/include \
                             Docs/src/ogre-shadows.md \
                             Docs/src/scripts.md \
                             Docs/src/material-scripts.md \
+                            Docs/src/sy-hair.md \
                             Docs/src/high-level-programs.md \
                             Docs/src/particle-scripts.md \
                             Docs/src/hardware-buffers.md \

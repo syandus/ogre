@@ -2,6 +2,7 @@
 [OgreInternal]
 FileSystem=@OGRE_CORE_MEDIA_DIR@/Main
 FileSystem=@OGRE_CORE_MEDIA_DIR@/RTShaderLib
+FileSystem=@OGRE_CORE_MEDIA_DIR@/SyHair
 FileSystem=@OGRE_CORE_MEDIA_DIR@/Terrain/
 
 # Resources required by OgreBites::Trays

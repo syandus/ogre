@@ -29,5 +29,9 @@ file(COPY
     DESTINATION "${MEDIA_DIR}/")
 
 file(COPY
+    "${CMAKE_SOURCE_DIR}/Media/SyHair"
+    DESTINATION "${MEDIA_DIR}/")
+
+file(COPY
     "${CMAKE_SOURCE_DIR}/Media/Main"
     DESTINATION "${MEDIA_DIR}/")

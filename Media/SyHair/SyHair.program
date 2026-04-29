@@ -1,0 +1,58 @@
+// Pragmatic dual-pass hair-card programs.
+// The matching material examples live in SyHair.material.
+
+vertex_program SyHairVS glsl glsles hlsl glslang
+{
+    source SyHair.vert
+
+    default_params
+    {
+        param_named_auto uWorldViewProj worldviewproj_matrix
+        param_named_auto uWorld world_matrix
+    }
+}
+
+fragment_program SyHairCoreFS glsl glsles hlsl glslang
+{
+    source SyHairCore.frag
+
+    default_params
+    {
+        param_named_auto uLightPos light_position 0
+        param_named_auto uLightDiffuse light_diffuse_colour 0
+        param_named_auto uAmbient ambient_light_colour
+        param_named_auto uCameraPos camera_position
+
+        param_named uDiffuseAlpha int 0
+        param_named uNormalMap int 1
+
+        param_named uAlphaClip float 0.55
+        param_named uEdgeLow float 0.30
+        param_named uEdgeHigh float 0.60
+        param_named uUseA2C float 1.0
+        param_named uNormalStrength float 1.0
+        param_named uSpecStrength float 0.35
+    }
+}
+
+fragment_program SyHairFringeFS glsl glsles hlsl glslang
+{
+    source SyHairFringe.frag
+
+    default_params
+    {
+        param_named_auto uLightPos light_position 0
+        param_named_auto uLightDiffuse light_diffuse_colour 0
+        param_named_auto uAmbient ambient_light_colour
+
+        param_named uDiffuseAlpha int 0
+        param_named uBlueNoise int 1
+
+        param_named uFringeMin float 0.20
+        param_named uFringeMax float 0.55
+        param_named uFringeAlphaScale float 0.45
+        param_named uFrameIndex float 0.0
+        param_named uUseDither float 0.0
+        param_named uUseBlueNoise float 1.0
+    }
+}

@@ -1,0 +1,177 @@
+// SyHair dual-pass hair-card materials.
+//
+// Use SyHair/CC5_MaskedFringe as the Reallusion/CC-style starting point.
+// Override $DiffuseAlpha and $Normal in a child material for each hairstyle.
+
+abstract material SyHair/Base_MaskedFringe
+{
+    set $DiffuseAlpha sy_hair_diffuse_alpha_sample.png
+    set $Normal sy_flat_normal.png
+    set $BlueNoise sy_blue_noise_128.png
+
+    technique
+    {
+        pass Core
+        {
+            lighting on
+
+            depth_check on
+            depth_write on
+            depth_func less_equal
+
+            cull_hardware none
+
+            scene_blend one zero
+            transparent_sorting off
+
+            // Useful only when the active render target has MSAA and the backend supports it.
+            alpha_to_coverage on
+
+            vertex_program_ref SyHairVS
+            {
+            }
+
+            fragment_program_ref SyHairCoreFS
+            {
+                param_named uAlphaClip float 0.55
+                param_named uEdgeLow float 0.30
+                param_named uEdgeHigh float 0.60
+                param_named uUseA2C float 1.0
+                param_named uNormalStrength float 1.0
+                param_named uSpecStrength float 0.35
+            }
+
+            texture_unit DiffuseAlpha
+            {
+                texture $DiffuseAlpha
+                filtering anisotropic
+                max_anisotropy 4
+                tex_address_mode wrap
+            }
+
+            texture_unit Normal
+            {
+                texture $Normal
+                filtering anisotropic
+                max_anisotropy 4
+                tex_address_mode wrap
+            }
+        }
+
+        pass Fringe
+        {
+            lighting on
+
+            depth_check on
+            depth_write off
+            depth_func less_equal
+
+            cull_hardware none
+
+            scene_blend src_alpha one_minus_src_alpha
+            transparent_sorting on
+
+            vertex_program_ref SyHairVS
+            {
+            }
+
+            fragment_program_ref SyHairFringeFS
+            {
+                param_named uFringeMin float 0.20
+                param_named uFringeMax float 0.55
+                param_named uFringeAlphaScale float 0.45
+                param_named uFrameIndex float 0.0
+                param_named uUseDither float 0.0
+                param_named uUseBlueNoise float 1.0
+            }
+
+            texture_unit DiffuseAlpha
+            {
+                texture $DiffuseAlpha
+                filtering anisotropic
+                max_anisotropy 4
+                tex_address_mode wrap
+            }
+
+            texture_unit BlueNoise
+            {
+                texture $BlueNoise
+                filtering none
+                tex_address_mode wrap
+            }
+        }
+    }
+}
+
+abstract material SyHair/Base_CoreOnly
+{
+    set $DiffuseAlpha sy_hair_diffuse_alpha_sample.png
+    set $Normal sy_flat_normal.png
+
+    technique
+    {
+        pass Core
+        {
+            lighting on
+
+            depth_check on
+            depth_write on
+            depth_func less_equal
+
+            cull_hardware none
+
+            scene_blend one zero
+            transparent_sorting off
+
+            // Useful only when the active render target has MSAA and the backend supports it.
+            alpha_to_coverage on
+
+            vertex_program_ref SyHairVS
+            {
+            }
+
+            fragment_program_ref SyHairCoreFS
+            {
+                param_named uAlphaClip float 0.55
+                param_named uEdgeLow float 0.30
+                param_named uEdgeHigh float 0.60
+                param_named uUseA2C float 1.0
+                param_named uNormalStrength float 1.0
+                param_named uSpecStrength float 0.35
+            }
+
+            texture_unit DiffuseAlpha
+            {
+                texture $DiffuseAlpha
+                filtering anisotropic
+                max_anisotropy 4
+                tex_address_mode wrap
+            }
+
+            texture_unit Normal
+            {
+                texture $Normal
+                filtering anisotropic
+                max_anisotropy 4
+                tex_address_mode wrap
+            }
+        }
+    }
+}
+
+material SyHair/CC5_MaskedFringe : SyHair/Base_MaskedFringe
+{
+    set $DiffuseAlpha cc_hair_diffuse_alpha.png
+    set $Normal cc_hair_normal.png
+}
+
+material SyHair/CC5_CoreOnly : SyHair/Base_CoreOnly
+{
+    set $DiffuseAlpha cc_hair_diffuse_alpha.png
+    set $Normal cc_hair_normal.png
+}
+
+// Loads without external CC textures. Useful for checking resource setup.
+material SyHair/Placeholder_MaskedFringe : SyHair/Base_MaskedFringe
+{
+}

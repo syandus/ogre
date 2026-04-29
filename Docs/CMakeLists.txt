@@ -53,6 +53,7 @@ if(DOXYGEN_FOUND)
         ${PROJECT_SOURCE_DIR}/Docs/src/ogre-shadows.md
         ${PROJECT_SOURCE_DIR}/Docs/src/scripts.md
         ${PROJECT_SOURCE_DIR}/Docs/src/material-scripts.md
+        ${PROJECT_SOURCE_DIR}/Docs/src/sy-hair.md
         ${PROJECT_SOURCE_DIR}/Docs/src/high-level-programs.md
         ${PROJECT_SOURCE_DIR}/Docs/src/particle-scripts.md
         ${PROJECT_SOURCE_DIR}/Docs/src/hardware-buffers.md
