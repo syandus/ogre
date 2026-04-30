@@ -79,13 +79,15 @@ float syBayer4(vec2 fragCoord)
 
 float sySampleNoise(vec2 fragCoord)
 {
+    float noise = syBayer4(fragCoord);
+
     if (uUseBlueNoise > 0.5)
     {
         vec2 uv = fract((fragCoord + vec2(uFrameIndex * 17.0, uFrameIndex * 29.0)) * (1.0 / 128.0));
-        return texture2D(uBlueNoise, uv).r;
+        noise = texture2D(uBlueNoise, uv).r;
     }
 
-    return syBayer4(fragCoord);
+    return noise;
 }
 
 MAIN_DECLARATION
