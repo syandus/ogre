@@ -18,9 +18,9 @@ fragment_program SyHairCoreFS glsl glsles hlsl glslang
 
     default_params
     {
-        param_named_auto uLightPos light_position 0
-        param_named_auto uLightDiffuse light_diffuse_colour 0
-        param_named_auto uAmbient ambient_light_colour
+        param_named_auto uLightPos light_position_array 3
+        param_named_auto uLightDiffuse light_diffuse_colour_power_scaled_array 3
+        param_named_auto uSceneColour derived_scene_colour
         param_named_auto uCameraPos camera_position
 
         param_named uDiffuseAlpha int 0
@@ -41,9 +41,9 @@ fragment_program SyHairFringeFS glsl glsles hlsl glslang
 
     default_params
     {
-        param_named_auto uLightPos light_position 0
-        param_named_auto uLightDiffuse light_diffuse_colour 0
-        param_named_auto uAmbient ambient_light_colour
+        param_named_auto uLightPos light_position_array 3
+        param_named_auto uLightDiffuse light_diffuse_colour_power_scaled_array 3
+        param_named_auto uSceneColour derived_scene_colour
 
         param_named uDiffuseAlpha int 0
         param_named uBlueNoise int 1

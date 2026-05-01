@@ -3,10 +3,12 @@
 SAMPLER2D(uDiffuseAlpha, 0);
 SAMPLER2D(uNormalMap, 1);
 
+#define SY_HAIR_LIGHT_COUNT 3
+
 OGRE_UNIFORMS(
-uniform vec4 uLightPos;
-uniform vec4 uLightDiffuse;
-uniform vec4 uAmbient;
+uniform vec4 uLightPos[SY_HAIR_LIGHT_COUNT];
+uniform vec4 uLightDiffuse[SY_HAIR_LIGHT_COUNT];
+uniform vec4 uSceneColour;
 uniform vec3 uCameraPos;
 
 uniform float uAlphaClip;
@@ -87,17 +89,25 @@ MAIN_DECLARATION
     vec3 n = syDecodeNormal(nTex, vWorldTangent, vWorldBitangent, vWorldNormal);
     n = syFaceViewer(n, viewDir);
 
-    vec3 l = syLightVector(uLightPos, vWorldPos);
     vec3 t = sySafeNormalize(vWorldTangent, vec3(1.0, 0.0, 0.0));
+    vec3 direct = vec3_splat(0.0);
+    vec3 specular = vec3_splat(0.0);
 
-    float nDotL = saturate(abs(dot(n, l)));
-    float diffuse = 0.25 + 0.75 * nDotL;
-    float spec1 = syHairSpec(n, t, l, viewDir, 0.45);
-    float spec2 = syHairSpec(n, sySafeNormalize(t + 0.25 * n, t), l, viewDir, 0.70) * 0.35;
+    for (int i = 0; i < SY_HAIR_LIGHT_COUNT; ++i)
+    {
+        vec3 l = syLightVector(uLightPos[i], vWorldPos);
+        vec3 lightColor = uLightDiffuse[i].rgb;
 
-    vec3 ambient = max(uAmbient.rgb, vec3_splat(0.08));
-    vec3 lightColor = max(uLightDiffuse.rgb, vec3_splat(0.25));
-    vec3 color = tex.rgb * (ambient + lightColor * diffuse) + lightColor * ((spec1 + spec2) * uSpecStrength);
+        float nDotL = saturate(abs(dot(n, l)));
+        float diffuse = 0.25 + 0.75 * nDotL;
+        float spec1 = syHairSpec(n, t, l, viewDir, 0.45);
+        float spec2 = syHairSpec(n, sySafeNormalize(t + 0.25 * n, t), l, viewDir, 0.70) * 0.35;
+
+        direct += lightColor * diffuse;
+        specular += lightColor * ((spec1 + spec2) * uSpecStrength);
+    }
+
+    vec3 color = tex.rgb * (uSceneColour.rgb + direct) + specular;
 
     float edge = smoothstep(uEdgeLow, uEdgeHigh, alpha);
     float outAlpha = mix(1.0, edge, saturate(uUseA2C));

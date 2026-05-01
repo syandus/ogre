@@ -3,10 +3,12 @@
 SAMPLER2D(uDiffuseAlpha, 0);
 SAMPLER2D(uBlueNoise, 1);
 
+#define SY_HAIR_LIGHT_COUNT 3
+
 OGRE_UNIFORMS(
-uniform vec4 uLightPos;
-uniform vec4 uLightDiffuse;
-uniform vec4 uAmbient;
+uniform vec4 uLightPos[SY_HAIR_LIGHT_COUNT];
+uniform vec4 uLightDiffuse[SY_HAIR_LIGHT_COUNT];
+uniform vec4 uSceneColour;
 
 uniform float uFringeMin;
 uniform float uFringeMax;
@@ -112,12 +114,16 @@ MAIN_DECLARATION
     }
 
     vec3 n = sySafeNormalize(vWorldNormal, vec3(0.0, 0.0, 1.0));
-    vec3 l = syLightVector(uLightPos, vWorldPos);
-    float lit = 0.30 + 0.70 * saturate(abs(dot(n, l)));
+    vec3 direct = vec3_splat(0.0);
 
-    vec3 ambient = max(uAmbient.rgb, vec3_splat(0.08));
-    vec3 lightColor = max(uLightDiffuse.rgb, vec3_splat(0.25));
-    vec3 color = tex.rgb * (ambient + lightColor * lit);
+    for (int i = 0; i < SY_HAIR_LIGHT_COUNT; ++i)
+    {
+        vec3 l = syLightVector(uLightPos[i], vWorldPos);
+        float lit = 0.30 + 0.70 * saturate(abs(dot(n, l)));
+        direct += uLightDiffuse[i].rgb * lit;
+    }
+
+    vec3 color = tex.rgb * (uSceneColour.rgb + direct);
 
     gl_FragColor = vec4(color, fringe * uFringeAlphaScale);
 }
