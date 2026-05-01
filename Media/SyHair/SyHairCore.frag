@@ -4,6 +4,7 @@ SAMPLER2D(uDiffuseAlpha, 0);
 SAMPLER2D(uNormalMap, 1);
 
 #define SY_HAIR_LIGHT_COUNT 3
+#define SY_HAIR_INV_PI 0.31830988618
 
 OGRE_UNIFORMS(
 uniform vec4 uLightPos[SY_HAIR_LIGHT_COUNT];
@@ -16,6 +17,7 @@ uniform float uEdgeLow;
 uniform float uEdgeHigh;
 uniform float uUseA2C;
 uniform float uNormalStrength;
+uniform float uBackLightStrength;
 uniform float uSpecStrength;
 )
 
@@ -69,7 +71,7 @@ float syHairSpec(vec3 n, vec3 t, vec3 l, vec3 v, float roughness)
     float tDotH = dot(t, h);
     float sinTH = sqrt(max(1.0 - tDotH * tDotH, 0.0));
     float exponent = mix(24.0, 96.0, saturate(1.0 - roughness));
-    float nDotL = saturate(abs(dot(n, l)));
+    float nDotL = saturate(dot(n, l));
 
     return pow(sinTH, exponent) * nDotL;
 }
@@ -98,8 +100,9 @@ MAIN_DECLARATION
         vec3 l = syLightVector(uLightPos[i], vWorldPos);
         vec3 lightColor = uLightDiffuse[i].rgb;
 
-        float nDotL = saturate(abs(dot(n, l)));
-        float diffuse = 0.25 + 0.75 * nDotL;
+        float front = saturate(dot(n, l));
+        float back = saturate(dot(-n, l)) * uBackLightStrength;
+        float diffuse = (front + back) * SY_HAIR_INV_PI;
         float spec1 = syHairSpec(n, t, l, viewDir, 0.45);
         float spec2 = syHairSpec(n, sySafeNormalize(t + 0.25 * n, t), l, viewDir, 0.70) * 0.35;
 

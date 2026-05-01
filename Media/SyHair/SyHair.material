@@ -38,7 +38,8 @@ abstract material SyHair/Base_MaskedFringe
                 param_named uEdgeHigh float 0.60
                 param_named uUseA2C float 1.0
                 param_named uNormalStrength float 1.0
-                param_named uSpecStrength float 0.35
+                param_named uBackLightStrength float 0.15
+                param_named uSpecStrength float 0.15
             }
 
             texture_unit DiffuseAlpha
@@ -83,6 +84,7 @@ abstract material SyHair/Base_MaskedFringe
                 param_named uFrameIndex float 0.0
                 param_named uUseDither float 0.0
                 param_named uUseBlueNoise float 1.0
+                param_named uBackLightStrength float 0.15
             }
 
             texture_unit DiffuseAlpha
@@ -137,7 +139,8 @@ abstract material SyHair/Base_CoreOnly
                 param_named uEdgeHigh float 0.60
                 param_named uUseA2C float 1.0
                 param_named uNormalStrength float 1.0
-                param_named uSpecStrength float 0.35
+                param_named uBackLightStrength float 0.15
+                param_named uSpecStrength float 0.15
             }
 
             texture_unit DiffuseAlpha

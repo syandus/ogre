@@ -4,6 +4,7 @@ SAMPLER2D(uDiffuseAlpha, 0);
 SAMPLER2D(uBlueNoise, 1);
 
 #define SY_HAIR_LIGHT_COUNT 3
+#define SY_HAIR_INV_PI 0.31830988618
 
 OGRE_UNIFORMS(
 uniform vec4 uLightPos[SY_HAIR_LIGHT_COUNT];
@@ -16,6 +17,7 @@ uniform float uFringeAlphaScale;
 uniform float uFrameIndex;
 uniform float uUseDither;
 uniform float uUseBlueNoise;
+uniform float uBackLightStrength;
 )
 
 MAIN_PARAMETERS
@@ -119,7 +121,9 @@ MAIN_DECLARATION
     for (int i = 0; i < SY_HAIR_LIGHT_COUNT; ++i)
     {
         vec3 l = syLightVector(uLightPos[i], vWorldPos);
-        float lit = 0.30 + 0.70 * saturate(abs(dot(n, l)));
+        float front = saturate(dot(n, l));
+        float back = saturate(dot(-n, l)) * uBackLightStrength;
+        float lit = (front + back) * SY_HAIR_INV_PI;
         direct += uLightDiffuse[i].rgb * lit;
     }
 
