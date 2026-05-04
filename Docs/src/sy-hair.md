@@ -6,6 +6,9 @@ hair mask in the diffuse texture alpha channel.
 
 The default material is `SyHair/CC5_MaskedFringe`.
 
+For shader math, tuning rationale, and debugging recipes, see
+@ref Sy-Hair-Techniques.
+
 @tableofcontents
 
 # Render Model
