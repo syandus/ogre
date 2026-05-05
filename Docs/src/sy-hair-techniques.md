@@ -42,19 +42,18 @@ The runtime files live in `Media/SyHair`:
 - `SyHair.vert`: shared vertex shader
 - `SyHairCore.frag`: alpha-clipped core fragment shader
 - `SyHairFringe.frag`: transparent fringe fragment shader
-- `sy_flat_normal.png`: neutral normal fallback
-- `sy_blue_noise_128.png`: optional blue-noise dither texture
 
 `Media/Main` must also be available because the shaders include
 `OgreUnifiedShader.h`.
 
-The texture inputs are:
+The default texture input is:
 
 | Material variable | Used by | Meaning |
 | --- | --- | --- |
 | `$DiffuseAlpha` | Core and Fringe | RGB hair colour, alpha coverage mask |
-| `$Normal` | Core | Tangent-space normal map, or flat fallback |
-| `$BlueNoise` | Fringe | Optional 128x128 blue-noise texture |
+
+Normal-map and blue-noise texture bindings are compile-time opt-in experiments.
+They are not bound by the default materials.
 
 # Two-pass Render Model
 
@@ -122,11 +121,12 @@ whole hairstyle transparent.
 
 `SyHair.vert` outputs all lighting data in world space:
 
-- `vUV`: diffuse/normal texture coordinate
+- `vUV`: diffuse texture coordinate
 - `vWorldPos`: world-space position
 - `vWorldNormal`: normalized world-space normal
 - `vWorldTangent`: normalized world-space tangent
-- `vWorldBitangent`: normalized world-space bitangent
+- `vWorldBitangent`: normalized world-space bitangent when
+  `SY_HAIR_ENABLE_NORMAL_MAPS` is enabled
 
 The shader transforms position with `uWorldViewProj` and transforms normal and
 tangent using `uWorld` with a zero `w`:
@@ -142,7 +142,7 @@ The tangent is re-orthogonalized against the normal:
 t = normalize(t - n * dot(n, t));
 ```
 
-The bitangent uses the mesh tangent sign:
+When normal maps are enabled, the bitangent uses the mesh tangent sign:
 
 ```glsl
 float tangentSign = tangent.w < 0.0 ? -1.0 : 1.0;
@@ -157,9 +157,20 @@ Important limitation: normals and tangents are transformed with `uWorld`, not an
 inverse-transpose normal matrix. This is acceptable for normal avatar transforms
 and uniform scale. Nonuniform scale can skew lighting.
 
-# Normal Map Decode
+# Normal Maps
 
-The core pass samples `uNormalMap` and decodes it as tangent-space normal data:
+Normal maps are disabled by default:
+
+```glsl
+#define SY_HAIR_ENABLE_NORMAL_MAPS 0
+```
+
+Character Creator 5 hair export does not generate hair normals, so the default
+core pass uses the card/mesh normal directly. This avoids a normal texture bind,
+normal-map sample, bitangent varying, and fallback flat-normal asset.
+
+If `SY_HAIR_ENABLE_NORMAL_MAPS` is changed to `1`, the core pass samples
+`uNormalMap` and decodes it as tangent-space normal data:
 
 ```glsl
 vec3 localN = nTex * 2.0 - 1.0;
@@ -168,18 +179,18 @@ localN = normalize(localN);
 vec3 worldN = normalize(mat3(t, b, n) * localN);
 ```
 
-`uNormalStrength` scales only the XY perturbation. This lets a material bind a
-placeholder normal map while disabling its visible effect:
+`uNormalStrength` scales only the XY perturbation:
 
 - `0.0`: ignore tangent-space perturbation, use card/mesh normal
 - `0.3` to `0.6`: mild authored hair normal
 - `1.0`: full authored normal map
 
-If the only available normal is a borrowed body normal, use
-`uNormalStrength 0.0`. Body normals usually encode skin or clothing detail, not
-strand/card detail, and can make hair lighting look noisy or wrong.
+Do not use a borrowed body normal. Body normals usually encode skin or clothing
+detail, not strand/card detail, and can make hair lighting look noisy or wrong.
+Enable the flag in both `SyHair.vert` and `SyHairCore.frag`, and add the normal
+sampler, material parameter, and texture unit back to the material.
 
-The core pass flips the decoded normal toward the viewer:
+The core pass flips the active normal toward the viewer:
 
 ```glsl
 if (dot(n, viewDir) < 0.0)
@@ -307,26 +318,27 @@ The fringe pass does not add specular. This avoids bright transparent halos.
 
 # Dither And Noise
 
-Fringe can optionally dither the transparent band:
+Dither and blue noise are disabled by default:
 
 ```glsl
-if (uUseDither > 0.5)
-{
-    float noise = sySampleNoise(gl_FragCoord.xy);
-    if (fringe < noise)
-    {
-        discard;
-    }
-}
+#define SY_HAIR_ENABLE_DITHER 0
+#define SY_HAIR_ENABLE_BLUE_NOISE 0
 ```
 
-`sySampleNoise()` uses Bayer by default:
+The observed result was worse than the plain blended fringe. Dither applies
+stochastic discard before final fringe alpha:
 
 ```glsl
-float noise = syBayer4(fragCoord);
+gl_FragColor.a = fringe * uFringeAlphaScale;
 ```
 
-If `uUseBlueNoise > 0.5`, it samples `$BlueNoise` instead:
+That makes the effective contribution thinner and darker than the non-dither
+path. Blue noise masked the pattern better than Bayer, but the visual
+improvement was too small to justify packaging a default blue-noise texture.
+
+If `SY_HAIR_ENABLE_DITHER` is changed to `1`, SyHair uses static Bayer dither by
+default. If `SY_HAIR_ENABLE_BLUE_NOISE` is also changed to `1`, it samples an
+optional blue-noise texture:
 
 ```glsl
 vec2 uv = fract((fragCoord + vec2(uFrameIndex * 17.0,
@@ -334,15 +346,10 @@ vec2 uv = fract((fragCoord + vec2(uFrameIndex * 17.0,
 noise = texture2D(uBlueNoise, uv).r;
 ```
 
-Recommended defaults:
-
-- `uUseDither = 0.0`
-- `uUseBlueNoise = 1.0`
-- `uFrameIndex = 0.0`
-
-Only enable dithering after core/fringe brightness and coverage are correct.
-Animating `uFrameIndex` without temporal accumulation can make edges sparkle, so
-keep the fringe subtle when using animated blue noise.
+Animated blue noise should only be used with temporal accumulation or very
+subtle fringe settings because it can sparkle at hair-card edges.
+When blue noise is enabled, add the sampler, `uFrameIndex` parameter, texture
+unit, and texture asset back to the material.
 
 # Parameter Reference
 
@@ -354,7 +361,6 @@ keep the fringe subtle when using animated blue noise.
 | `uEdgeLow` | `0.30` | `0.15` to `0.45` | lower alpha-to-coverage edge |
 | `uEdgeHigh` | `0.60` | `0.45` to `0.85` | upper alpha-to-coverage edge |
 | `uUseA2C` | `1.0` | `0.0` or `1.0` | use smooth alpha for A2C |
-| `uNormalStrength` | `1.0` | `0.0` to `1.0` | normal map perturbation strength |
 | `uBackLightStrength` | `0.15` | `0.0` to `0.25` | controlled two-sided diffuse |
 | `uSpecStrength` | `0.15` | `0.0` to `0.25` | tangent highlight strength |
 
@@ -365,9 +371,6 @@ keep the fringe subtle when using animated blue noise.
 | `uFringeMin` | `0.20` | `0.05` to `0.45` | first alpha value drawn by fringe |
 | `uFringeMax` | `0.55` | `0.35` to `0.95` | alpha value where fringe stops |
 | `uFringeAlphaScale` | `0.45` | `0.10` to `1.00` | final fringe opacity multiplier |
-| `uUseDither` | `0.0` | `0.0` or `1.0` | enable fringe dither discard |
-| `uUseBlueNoise` | `1.0` | `0.0` or `1.0` | use blue noise instead of Bayer |
-| `uFrameIndex` | `0.0` | frame counter | animated blue-noise offset |
 | `uBackLightStrength` | `0.15` | `0.0` to `0.25` | same diffuse softness as core |
 
 # Tuning Recipes
@@ -396,7 +399,6 @@ Use `SyHair/Base_CoreOnly` first.
 Recommended first debug settings:
 
 ```material
-param_named uNormalStrength float 0.0
 param_named uBackLightStrength float 0.0
 param_named uSpecStrength float 0.0
 ```
@@ -412,7 +414,6 @@ Use `SyHair/Base_MaskedFringe` and temporarily exaggerate fringe:
 param_named uFringeMin float 0.05
 param_named uFringeMax float 0.95
 param_named uFringeAlphaScale float 1.0
-param_named uUseDither float 0.0
 ```
 
 Expected result: edges should become softer and more transparent than core-only.
@@ -474,16 +475,16 @@ lighting terms first.
 
 ## Edges Sparkle
 
-- Set `uUseDither 0.0`.
-- Tune alpha/fringe without dither.
-- Avoid animated `uFrameIndex` without temporal accumulation.
-- Re-enable dither only if needed.
+- Keep `SY_HAIR_ENABLE_DITHER` disabled.
+- Tune alpha/fringe without stochastic discard.
+- Lower `uFringeAlphaScale` or raise `uFringeMin`.
+- Use animated blue noise only with temporal accumulation.
 
 ## Normal Detail Looks Wrong
 
-- Set `uNormalStrength 0.0`.
-- Check lighting again.
-- Re-enable only with an authored hair normal map.
+- Keep `SY_HAIR_ENABLE_NORMAL_MAPS` disabled unless the asset has authored hair
+  normals.
+- Check lighting with the card/mesh normal path first.
 - Inspect tangent basis and nonuniform object scale if artifacts remain.
 
 ## Deploy Edits Disappear

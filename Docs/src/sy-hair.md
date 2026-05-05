@@ -52,8 +52,6 @@ For real assets, prefer a child material per hairstyle:
 material MyAvatar/Hair : SyHair/Base_MaskedFringe
 {
     set $DiffuseAlpha my_avatar_hair_diffuse.png
-    set $Normal my_avatar_hair_normal.png
-    set $BlueNoise sy_blue_noise_128.png
 }
 ```
 
@@ -63,12 +61,22 @@ For first bring-up, use only the core pass:
 material MyAvatar/HairCoreOnly : SyHair/Base_CoreOnly
 {
     set $DiffuseAlpha my_avatar_hair_diffuse.png
-    set $Normal my_avatar_hair_normal.png
 }
 ```
 
-`SyHair/Placeholder_MaskedFringe` uses small built-in textures and exists only
+`SyHair/Placeholder_MaskedFringe` uses a small built-in texture and exists only
 to verify that the resource locations and shaders load.
+
+# Feature Defaults
+
+SyHair defaults to the Character Creator 5 export shape: diffuse RGB plus alpha
+coverage mask. Normal maps are disabled at compile time because CC5 hair export
+does not generate hair normals.
+
+Fringe dither and blue noise are also disabled at compile time. In testing,
+dither made the fringe look thinner and darker because stochastic discard is
+applied before the already-scaled fringe alpha. Blue noise did not improve the
+default look enough to justify packaging another texture.
 
 # Tuning
 
@@ -78,7 +86,6 @@ Start with the defaults:
 - `uFringeMin = 0.20`
 - `uFringeMax = 0.55`
 - `uFringeAlphaScale = 0.45`
-- `uUseDither = 0.0`
 
 If the hairstyle still looks transparent or soupy:
 
@@ -92,11 +99,8 @@ If the hairstyle looks chunky or shaved:
 - lower `uFringeMin`
 - increase `uFringeAlphaScale` slightly
 
-If edges sparkle:
-
-- keep `uUseDither = 0.0`
-- use static Bayer dither by setting `uUseDither = 1.0` and `uUseBlueNoise = 0.0`
-- if you animate `uFrameIndex`, do it only with temporal accumulation or keep the fringe subtle
+If edges sparkle, keep dither disabled and reduce fringe contribution with
+`uFringeAlphaScale` or a higher `uFringeMin`.
 
 If the core edge looks too hard:
 
@@ -111,7 +115,7 @@ set `uUseA2C = 0.0`; the core pass will still write stable depth.
 
 - Do not turn `depth_write off` on the core pass.
 - Do not make the whole hairstyle alpha blended again.
-- The normal map is optional, but a flat normal texture should be bound if no
-  authored normal map exists.
+- Normal maps, dither, and blue noise are compile-time opt-in experiments, not
+  default material features.
 - This is a cheap anisotropic-ish shader, not physically correct strand
   rendering or order-independent transparency.
