@@ -20,6 +20,7 @@ OGRE_UNIFORMS(
 uniform vec4 uLightPos[SY_HAIR_LIGHT_COUNT];
 uniform vec4 uLightDiffuse[SY_HAIR_LIGHT_COUNT];
 uniform vec4 uSceneColour;
+uniform vec4 uDesaturation;
 
 uniform float uFringeMin;
 uniform float uFringeMax;
@@ -105,6 +106,13 @@ float sySampleNoise(vec2 fragCoord)
 }
 #endif
 
+vec4 syDesaturate(vec4 colour, float amount)
+{
+    float luma = dot(colour.rgb, vec3(0.299, 0.587, 0.114));
+    colour.rgb = mix(colour.rgb, vec3_splat(luma), clamp(amount, 0.0, 1.0));
+    return colour;
+}
+
 MAIN_DECLARATION
 {
     vec4 tex = texture2D(uDiffuseAlpha, vUV);
@@ -139,5 +147,5 @@ MAIN_DECLARATION
 
     vec3 color = tex.rgb * (uSceneColour.rgb + direct);
 
-    gl_FragColor = vec4(color, fringe * uFringeAlphaScale);
+    gl_FragColor = syDesaturate(vec4(color, fringe * uFringeAlphaScale), uDesaturation.x);
 }

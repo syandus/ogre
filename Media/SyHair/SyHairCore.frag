@@ -16,6 +16,7 @@ OGRE_UNIFORMS(
 uniform vec4 uLightPos[SY_HAIR_LIGHT_COUNT];
 uniform vec4 uLightDiffuse[SY_HAIR_LIGHT_COUNT];
 uniform vec4 uSceneColour;
+uniform vec4 uDesaturation;
 uniform vec3 uCameraPos;
 
 uniform float uAlphaClip;
@@ -88,6 +89,13 @@ float syHairSpec(vec3 n, vec3 t, vec3 l, vec3 v, float roughness)
     return pow(sinTH, exponent) * nDotL;
 }
 
+vec4 syDesaturate(vec4 colour, float amount)
+{
+    float luma = dot(colour.rgb, vec3(0.299, 0.587, 0.114));
+    colour.rgb = mix(colour.rgb, vec3_splat(luma), clamp(amount, 0.0, 1.0));
+    return colour;
+}
+
 MAIN_DECLARATION
 {
     vec4 tex = texture2D(uDiffuseAlpha, vUV);
@@ -131,5 +139,5 @@ MAIN_DECLARATION
     float edge = smoothstep(uEdgeLow, uEdgeHigh, alpha);
     float outAlpha = mix(1.0, edge, saturate(uUseA2C));
 
-    gl_FragColor = vec4(color, outAlpha);
+    gl_FragColor = syDesaturate(vec4(color, outAlpha), uDesaturation.x);
 }
