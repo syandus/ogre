@@ -1,5 +1,9 @@
 #include <OgreUnifiedShader.h>
 
+#ifndef SY_HAIR_ENABLE_NORMAL_MAPS
+#define SY_HAIR_ENABLE_NORMAL_MAPS 0
+#endif
+
 OGRE_UNIFORMS(
 uniform mat4 uWorldViewProj;
 uniform mat4 uWorld;
@@ -15,7 +19,9 @@ OUT(vec2 vUV, TEXCOORD0)
 OUT(vec3 vWorldPos, TEXCOORD1)
 OUT(vec3 vWorldNormal, TEXCOORD2)
 OUT(vec3 vWorldTangent, TEXCOORD3)
+#if SY_HAIR_ENABLE_NORMAL_MAPS
 OUT(vec3 vWorldBitangent, TEXCOORD4)
+#endif
 
 vec3 sySafeNormalize(vec3 value, vec3 fallback)
 {
@@ -48,6 +54,7 @@ MAIN_DECLARATION
     vec3 t = sySafeNormalize(mul(uWorld, vec4(tangent.xyz, 0.0)).xyz, fallbackTangent);
     t = sySafeNormalize(t - n * dot(n, t), fallbackTangent);
 
+#if SY_HAIR_ENABLE_NORMAL_MAPS
     float tangentSign = 1.0;
     if (tangent.w < 0.0)
     {
@@ -55,12 +62,15 @@ MAIN_DECLARATION
     }
 
     vec3 b = sySafeNormalize(cross(n, t) * tangentSign, cross(n, fallbackTangent));
+#endif
 
     vUV = uv0;
     vWorldPos = worldPos.xyz;
     vWorldNormal = n;
     vWorldTangent = t;
+#if SY_HAIR_ENABLE_NORMAL_MAPS
     vWorldBitangent = b;
+#endif
 
     gl_Position = mul(uWorldViewProj, position);
 }

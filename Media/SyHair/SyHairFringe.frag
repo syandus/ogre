@@ -1,7 +1,17 @@
 #include <OgreUnifiedShader.h>
 
+#ifndef SY_HAIR_ENABLE_DITHER
+#define SY_HAIR_ENABLE_DITHER 0
+#endif
+
+#ifndef SY_HAIR_ENABLE_BLUE_NOISE
+#define SY_HAIR_ENABLE_BLUE_NOISE 0
+#endif
+
 SAMPLER2D(uDiffuseAlpha, 0);
+#if SY_HAIR_ENABLE_DITHER && SY_HAIR_ENABLE_BLUE_NOISE
 SAMPLER2D(uBlueNoise, 1);
+#endif
 
 #define SY_HAIR_LIGHT_COUNT 3
 #define SY_HAIR_INV_PI 0.31830988618
@@ -14,9 +24,9 @@ uniform vec4 uSceneColour;
 uniform float uFringeMin;
 uniform float uFringeMax;
 uniform float uFringeAlphaScale;
+#if SY_HAIR_ENABLE_DITHER && SY_HAIR_ENABLE_BLUE_NOISE
 uniform float uFrameIndex;
-uniform float uUseDither;
-uniform float uUseBlueNoise;
+#endif
 uniform float uBackLightStrength;
 )
 
@@ -42,6 +52,7 @@ vec3 syLightVector(vec4 lightPos, vec3 worldPos)
     return sySafeNormalize(lightPos.xyz - worldPos * lightPos.w, fallback);
 }
 
+#if SY_HAIR_ENABLE_DITHER
 float syBayer4(vec2 fragCoord)
 {
     vec2 p = mod(floor(fragCoord), vec2_splat(4.0));
@@ -83,16 +94,16 @@ float syBayer4(vec2 fragCoord)
 
 float sySampleNoise(vec2 fragCoord)
 {
+#if SY_HAIR_ENABLE_BLUE_NOISE
+    vec2 uv = fract((fragCoord + vec2(uFrameIndex * 17.0, uFrameIndex * 29.0)) * (1.0 / 128.0));
+    return texture2D(uBlueNoise, uv).r;
+#else
     float noise = syBayer4(fragCoord);
 
-    if (uUseBlueNoise > 0.5)
-    {
-        vec2 uv = fract((fragCoord + vec2(uFrameIndex * 17.0, uFrameIndex * 29.0)) * (1.0 / 128.0));
-        noise = texture2D(uBlueNoise, uv).r;
-    }
-
     return noise;
+#endif
 }
+#endif
 
 MAIN_DECLARATION
 {
@@ -106,14 +117,13 @@ MAIN_DECLARATION
 
     float fringe = smoothstep(uFringeMin, uFringeMax, alpha);
 
-    if (uUseDither > 0.5)
+#if SY_HAIR_ENABLE_DITHER
+    float noise = sySampleNoise(gl_FragCoord.xy);
+    if (fringe < noise)
     {
-        float noise = sySampleNoise(gl_FragCoord.xy);
-        if (fringe < noise)
-        {
-            discard;
-        }
+        discard;
     }
+#endif
 
     vec3 n = sySafeNormalize(vWorldNormal, vec3(0.0, 0.0, 1.0));
     vec3 direct = vec3_splat(0.0);

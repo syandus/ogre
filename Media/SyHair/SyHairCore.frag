@@ -1,7 +1,13 @@
 #include <OgreUnifiedShader.h>
 
+#ifndef SY_HAIR_ENABLE_NORMAL_MAPS
+#define SY_HAIR_ENABLE_NORMAL_MAPS 0
+#endif
+
 SAMPLER2D(uDiffuseAlpha, 0);
+#if SY_HAIR_ENABLE_NORMAL_MAPS
 SAMPLER2D(uNormalMap, 1);
+#endif
 
 #define SY_HAIR_LIGHT_COUNT 3
 #define SY_HAIR_INV_PI 0.31830988618
@@ -16,7 +22,9 @@ uniform float uAlphaClip;
 uniform float uEdgeLow;
 uniform float uEdgeHigh;
 uniform float uUseA2C;
+#if SY_HAIR_ENABLE_NORMAL_MAPS
 uniform float uNormalStrength;
+#endif
 uniform float uBackLightStrength;
 uniform float uSpecStrength;
 )
@@ -26,7 +34,9 @@ IN(vec2 vUV, TEXCOORD0)
 IN(vec3 vWorldPos, TEXCOORD1)
 IN(vec3 vWorldNormal, TEXCOORD2)
 IN(vec3 vWorldTangent, TEXCOORD3)
+#if SY_HAIR_ENABLE_NORMAL_MAPS
 IN(vec3 vWorldBitangent, TEXCOORD4)
+#endif
 
 vec3 sySafeNormalize(vec3 value, vec3 fallback)
 {
@@ -39,6 +49,7 @@ vec3 sySafeNormalize(vec3 value, vec3 fallback)
     return fallback;
 }
 
+#if SY_HAIR_ENABLE_NORMAL_MAPS
 vec3 syDecodeNormal(vec3 nTex, vec3 t, vec3 b, vec3 n)
 {
     vec3 localN = nTex * 2.0 - 1.0;
@@ -48,6 +59,7 @@ vec3 syDecodeNormal(vec3 nTex, vec3 t, vec3 b, vec3 n)
     mat3 tbn = mtxFromCols(t, b, n);
     return sySafeNormalize(mul(tbn, localN), n);
 }
+#endif
 
 vec3 syFaceViewer(vec3 n, vec3 viewDir)
 {
@@ -87,8 +99,12 @@ MAIN_DECLARATION
     }
 
     vec3 viewDir = sySafeNormalize(uCameraPos - vWorldPos, vec3(0.0, 0.0, 1.0));
+#if SY_HAIR_ENABLE_NORMAL_MAPS
     vec3 nTex = texture2D(uNormalMap, vUV).xyz;
     vec3 n = syDecodeNormal(nTex, vWorldTangent, vWorldBitangent, vWorldNormal);
+#else
+    vec3 n = sySafeNormalize(vWorldNormal, vec3(0.0, 0.0, 1.0));
+#endif
     n = syFaceViewer(n, viewDir);
 
     vec3 t = sySafeNormalize(vWorldTangent, vec3(1.0, 0.0, 0.0));
