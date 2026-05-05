@@ -211,6 +211,7 @@ SyHair uses OGRE auto constants from `SyHair.program`:
 | `uWorldViewProj` | `worldviewproj_matrix` | 1 | clip-space transform |
 | `uWorld` | `world_matrix` | 1 | world-space attributes |
 | `uSceneColour` | `derived_scene_colour` | 1 | ambient/emissive scene term |
+| `uDesaturation` | `custom 0` | 1 | per-renderable desaturation amount in `.x` |
 | `uCameraPos` | `camera_position` | 1 | view vector for specular |
 | `uLightPos` | `light_position_array` | 3 | first three light vectors/positions |
 | `uLightDiffuse` | `light_diffuse_colour_power_scaled_array` | 3 | light colour multiplied by power |
@@ -242,6 +243,26 @@ SyHair is tuned for three directional lights such as key/fill/rim. The light
 vector helper also handles `light_position_array` entries with `w = 1.0`, but
 SyHair does not apply point-light distance attenuation or spotlight cone
 attenuation.
+
+# Desaturation
+
+SyHair mirrors RTSS post-colour desaturation so it can participate in global
+per-renderable effects such as dialog aside focus:
+
+```glsl
+float luma = dot(colour.rgb, vec3(0.299, 0.587, 0.114));
+colour.rgb = mix(colour.rgb, vec3(luma), clamp(amount, 0.0, 1.0));
+```
+
+Both core and fringe fragment programs bind:
+
+```material
+param_named_auto uDesaturation custom 0
+```
+
+The `.x` component is the desaturation amount. A value of `0.0` leaves hair
+unchanged; `1.0` renders grayscale. The blend affects RGB only and preserves
+the existing core alpha-to-coverage alpha and fringe blend alpha.
 
 # Diffuse Lighting Math
 

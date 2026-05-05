@@ -78,6 +78,16 @@ dither made the fringe look thinner and darker because stochastic discard is
 applied before the already-scaled fringe alpha. Blue noise did not improve the
 default look enough to justify packaging another texture.
 
+# Desaturation
+
+SyHair participates in the same per-renderable desaturation path as RTSS
+materials. Both core and fringe passes read custom renderable parameter index
+`0`, using `.x` as the desaturation amount.
+
+The shader clamps that value to `0.0` to `1.0`, computes RTSS-style luma from
+`dot(rgb, vec3(0.299, 0.587, 0.114))`, and blends RGB toward that grey value.
+Alpha is unchanged.
+
 # Tuning
 
 Start with the defaults:
