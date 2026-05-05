@@ -23,9 +23,7 @@ uniform float uAlphaClip;
 uniform float uEdgeLow;
 uniform float uEdgeHigh;
 uniform float uUseA2C;
-#if SY_HAIR_ENABLE_NORMAL_MAPS
 uniform float uNormalStrength;
-#endif
 uniform float uBackLightStrength;
 uniform float uSpecStrength;
 )
@@ -35,9 +33,7 @@ IN(vec2 vUV, TEXCOORD0)
 IN(vec3 vWorldPos, TEXCOORD1)
 IN(vec3 vWorldNormal, TEXCOORD2)
 IN(vec3 vWorldTangent, TEXCOORD3)
-#if SY_HAIR_ENABLE_NORMAL_MAPS
 IN(vec3 vWorldBitangent, TEXCOORD4)
-#endif
 
 vec3 sySafeNormalize(vec3 value, vec3 fallback)
 {

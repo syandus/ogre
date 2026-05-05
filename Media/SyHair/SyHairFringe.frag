@@ -25,9 +25,7 @@ uniform vec4 uDesaturation;
 uniform float uFringeMin;
 uniform float uFringeMax;
 uniform float uFringeAlphaScale;
-#if SY_HAIR_ENABLE_DITHER && SY_HAIR_ENABLE_BLUE_NOISE
 uniform float uFrameIndex;
-#endif
 uniform float uBackLightStrength;
 )
 
